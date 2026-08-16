@@ -11,6 +11,7 @@ class Offer(BaseModel):
     url: str | None = None
     platform: str | None = None
     image: str | None = None
+    is_dlc: bool = False
 
 
 class BundleDeal(BaseModel):

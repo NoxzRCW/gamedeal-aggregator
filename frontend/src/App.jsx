@@ -211,6 +211,7 @@ function SearchTab({ onOpenDetails }) {
   const [sortBy, setSortBy] = useState('price-asc')
   const [minDiscount, setMinDiscount] = useState(0)
   const [maxPrice, setMaxPrice] = useState('')
+  const [includeDlc, setIncludeDlc] = useState(false)
 
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -267,9 +268,10 @@ function SearchTab({ onOpenDetails }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  async function runSearch(term) {
+  async function runSearch(term, dlcOverride) {
     const value = term.trim()
     if (value.length < 2) return
+    const dlc = dlcOverride ?? includeDlc
     lastSubmittedRef.current = value
     setShowSuggestions(false)
     setSuggestions([])
@@ -277,7 +279,9 @@ function SearchTab({ onOpenDetails }) {
     setErrors([])
     setHasSearched(true)
     try {
-      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(value)}&offset=0&page_size=${PAGE_SIZE}`)
+      const res = await fetch(
+        `${API_BASE}/api/search?q=${encodeURIComponent(value)}&offset=0&page_size=${PAGE_SIZE}&include_dlc=${dlc}`
+      )
       const data = await res.json()
       setOffers(data.offers || [])
       setBundleDeals(data.bundle_deals || [])
@@ -297,7 +301,7 @@ function SearchTab({ onOpenDetails }) {
     setLoadingMore(true)
     try {
       const res = await fetch(
-        `${API_BASE}/api/search?q=${encodeURIComponent(value)}&offset=${offers.length}&page_size=${PAGE_SIZE}`
+        `${API_BASE}/api/search?q=${encodeURIComponent(value)}&offset=${offers.length}&page_size=${PAGE_SIZE}&include_dlc=${includeDlc}`
       )
       const data = await res.json()
       setOffers((prev) => [...prev, ...(data.offers || [])])
@@ -342,6 +346,15 @@ function SearchTab({ onOpenDetails }) {
       else next.add(source)
       return next
     })
+  }
+
+  function toggleDlc() {
+    const next = !includeDlc
+    setIncludeDlc(next)
+    if (lastSubmittedRef.current) {
+      // relance la recherche car ce filtre s'applique côté serveur (offres différentes renvoyées)
+      runSearch(lastSubmittedRef.current, next)
+    }
   }
 
   const filteredOffers = useMemo(() => {
@@ -477,6 +490,17 @@ function SearchTab({ onOpenDetails }) {
               className="price-input"
             />
           </div>
+
+          <div className="filter-group">
+            <label>&nbsp;</label>
+            <button
+              type="button"
+              className={`chip dlc-chip ${includeDlc ? 'active' : ''}`}
+              onClick={toggleDlc}
+            >
+              {includeDlc ? '✓ DLC inclus' : 'Sans DLC'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -575,6 +599,7 @@ function DiscoverTab({ onOpenDetails }) {
   const [maxPrice, setMaxPrice] = useState(20)
   const [minDiscount, setMinDiscount] = useState(50)
   const [sortBy, setSortBy] = useState('discount')
+  const [includeDlc, setIncludeDlc] = useState(false)
 
   const [offers, setOffers] = useState([])
   const [errors, setErrors] = useState([])
@@ -603,6 +628,7 @@ function DiscoverTab({ onOpenDetails }) {
     if (platform) params.set('platform', platform)
     if (genre) params.set('genre', genre)
     params.set('sort_by', sortBy)
+    params.set('include_dlc', includeDlc)
     params.set('offset', offset)
     params.set('page_size', PAGE_SIZE)
     return params
@@ -705,6 +731,17 @@ function DiscoverTab({ onOpenDetails }) {
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+        </div>
+
+        <div className="filter-group">
+          <label>&nbsp;</label>
+          <button
+            type="button"
+            className={`chip dlc-chip ${includeDlc ? 'active' : ''}`}
+            onClick={() => setIncludeDlc((v) => !v)}
+          >
+            {includeDlc ? '✓ DLC inclus' : 'Sans DLC'}
+          </button>
         </div>
 
         <button type="button" className="search-btn discover-btn" onClick={runDiscover} disabled={loading}>

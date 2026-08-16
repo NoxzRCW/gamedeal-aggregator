@@ -72,6 +72,7 @@ def _hit_to_offer(hit: dict) -> Offer:
         url=f"https://www.instant-gaming.com/en/{hit['prod_id']}-{hit.get('seo_name', '')}/",
         platform=hit.get("platform"),
         image=_cover_url(hit),
+        is_dlc=bool(hit.get("is_dlc")),
     )
 
 
@@ -82,14 +83,14 @@ def _hit_to_offer(hit: dict) -> Offer:
 ALGOLIA_MAX_HITS = 1000
 
 
-async def search(query: str) -> tuple[list[Offer], int]:
+async def search(query: str, include_dlc: bool = False) -> tuple[list[Offer], int]:
     query = sanitize_title(query)
+    params = f"query={query}&hitsPerPage=100"
+    if not include_dlc:
+        params += "&filters=is_dlc=0"
+
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.post(
-            ALGOLIA_URL,
-            headers=HEADERS,
-            json={"params": f"query={query}&hitsPerPage=100"},
-        )
+        resp = await client.post(ALGOLIA_URL, headers=HEADERS, json={"params": params})
         resp.raise_for_status()
         data = resp.json()
 
@@ -103,8 +104,9 @@ async def discover(
     platform: str | None = None,
     genre: str | None = None,
     sort_by: str = "discount",
+    include_dlc: bool = False,
 ) -> tuple[list[Offer], int]:
-    filters = ["is_dlc=0"]
+    filters = [] if include_dlc else ["is_dlc=0"]
     if min_price is not None:
         filters.append(f"price>={min_price}")
     if max_price is not None:

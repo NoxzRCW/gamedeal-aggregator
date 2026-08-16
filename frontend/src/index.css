@@ -361,6 +361,16 @@ h1 {
   color: white;
 }
 
+.dlc-chip {
+  white-space: nowrap;
+}
+
+.dlc-chip.active {
+  background: rgba(255, 200, 87, 0.18);
+  border-color: #ffc857;
+  color: #ffc857;
+}
+
 .filters select,
 .filters input[type="number"] {
   padding: 0.5rem 0.7rem;

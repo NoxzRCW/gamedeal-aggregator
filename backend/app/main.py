@@ -69,13 +69,14 @@ async def discover(
     platform: str | None = None,
     genre: str | None = None,
     sort_by: str = "discount",
+    include_dlc: bool = False,
     offset: int = 0,
     page_size: int = 24,
 ):
     # le résultat complet (jusqu'à 1000, trié) est mis en cache une fois pour tous
     # les offsets d'une même combinaison de filtres, évitant de refaire l'appel
     # Algolia à chaque clic sur "Charger plus"
-    cache_key = f"discover:{min_price}:{max_price}:{min_discount}:{platform}:{genre}:{sort_by}"
+    cache_key = f"discover:{min_price}:{max_price}:{min_discount}:{platform}:{genre}:{sort_by}:{include_dlc}"
     cached = await cache_get(cache_key)
     if cached is not None:
         all_offers, total, errors = cached["offers"], cached["total"], cached["errors"]
@@ -88,6 +89,7 @@ async def discover(
                 platform=platform,
                 genre=genre,
                 sort_by=sort_by,
+                include_dlc=include_dlc,
             )
             errors = []
         except Exception as exc:
@@ -136,8 +138,13 @@ async def details(title: str = Query(min_length=2)):
 
 
 @app.get("/api/search", response_model=SearchResponse)
-async def search(q: str = Query(min_length=2), offset: int = 0, page_size: int = 24):
-    cache_key = f"search:{q.lower()}"
+async def search(
+    q: str = Query(min_length=2),
+    include_dlc: bool = False,
+    offset: int = 0,
+    page_size: int = 24,
+):
+    cache_key = f"search:{q.lower()}:{include_dlc}"
     cached = await cache_get(cache_key)
     if cached is not None:
         all_offers = cached["offers"]
@@ -156,7 +163,10 @@ async def search(q: str = Query(min_length=2), offset: int = 0, page_size: int =
         )
 
     results = await asyncio.gather(
-        itad.search(q), instant_gaming.search(q), get_humble_index(), return_exceptions=True
+        itad.search(q, include_dlc=include_dlc),
+        instant_gaming.search(q, include_dlc=include_dlc),
+        get_humble_index(),
+        return_exceptions=True,
     )
     itad_result, ig_result, humble_index = results
 

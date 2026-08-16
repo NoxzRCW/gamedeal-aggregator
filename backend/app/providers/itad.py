@@ -51,7 +51,7 @@ async def suggest(query: str, limit: int = 8) -> list[dict]:
     return entries[:limit]
 
 
-async def search(query: str) -> list[Offer]:
+async def search(query: str, include_dlc: bool = False) -> list[Offer]:
     if not settings.itad_api_key:
         raise RuntimeError("ITAD_API_KEY manquant")
 
@@ -78,6 +78,9 @@ async def search(query: str) -> list[Offer]:
 
     offers: list[Offer] = []
     for game in games:
+        is_dlc = game.get("type") == "dlc"
+        if is_dlc and not include_dlc:
+            continue
         entry = price_data.get(game["id"])
         if not entry or not entry.get("deals"):
             continue
@@ -94,6 +97,7 @@ async def search(query: str) -> list[Offer]:
                 url=best["url"],
                 platform=best["shop"]["name"],
                 image=assets.get("boxart") or assets.get("banner145"),
+                is_dlc=is_dlc,
             )
         )
     return offers

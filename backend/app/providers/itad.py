@@ -6,7 +6,7 @@ from ..schemas import Offer
 BASE_URL = "https://api.isthereanydeal.com"
 
 
-async def suggest(query: str, limit: int = 8) -> list[str]:
+async def suggest(query: str, limit: int = 8) -> list[dict]:
     if not settings.itad_api_key:
         return []
 
@@ -19,26 +19,33 @@ async def suggest(query: str, limit: int = 8) -> list[str]:
         games = resp.json()
 
     seen = set()
-    titles = []
+    entries = []
     for g in games:
         title = g["title"]
         if title.lower() not in seen:
             seen.add(title.lower())
-            titles.append(title)
+            assets = g.get("assets") or {}
+            entries.append(
+                {
+                    "title": title,
+                    "type": g.get("type", "game"),
+                    "image": assets.get("boxart") or assets.get("banner145"),
+                }
+            )
 
     q = query.strip().lower()
 
-    def rank(title: str) -> tuple[int, int]:
-        low = title.lower()
+    def rank(entry: dict) -> tuple[int, int]:
+        low = entry["title"].lower()
         if low.startswith(q):
-            return (0, len(title))
+            return (0, len(low))
         # match au début d'un mot ("the sims" pour "sims")
         if any(word.startswith(q) for word in low.split()):
-            return (1, len(title))
-        return (2, len(title))
+            return (1, len(low))
+        return (2, len(low))
 
-    titles.sort(key=rank)
-    return titles[:limit]
+    entries.sort(key=rank)
+    return entries[:limit]
 
 
 async def search(query: str) -> list[Offer]:

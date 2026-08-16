@@ -159,18 +159,75 @@ h1 {
 }
 
 .suggestions li {
-  padding: 0.65rem 0.8rem;
-  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 11px;
   cursor: pointer;
   font-size: 0.9rem;
   color: var(--text);
-  transition: background 0.12s;
+  transition: background 0.12s, transform 0.12s;
 }
 
 .suggestions li.active,
 .suggestions li:hover {
   background: rgba(108, 92, 231, 0.2);
   color: white;
+  transform: translateX(2px);
+}
+
+.suggestions li + li {
+  margin-top: 2px;
+}
+
+.suggestion-thumb {
+  flex-shrink: 0;
+  width: 42px;
+  height: 56px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.suggestion-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.suggestion-thumb-fallback {
+  font-size: 1.1rem;
+  opacity: 0.5;
+}
+
+.suggestion-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.suggestion-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-type {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.07);
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
 }
 
 .search-btn {

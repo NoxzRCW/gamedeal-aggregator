@@ -134,9 +134,9 @@ export default function App() {
     runSearch(query)
   }
 
-  function selectSuggestion(title) {
-    setQuery(title)
-    runSearch(title)
+  function selectSuggestion(entry) {
+    setQuery(entry.title)
+    runSearch(entry.title)
   }
 
   function handleKeyDown(e) {
@@ -228,14 +228,26 @@ export default function App() {
             />
             {showSuggestions && suggestions.length > 0 && (
               <ul className="suggestions">
-                {suggestions.map((title, i) => (
+                {suggestions.map((entry, i) => (
                   <li
-                    key={title}
+                    key={entry.title}
                     className={i === activeSuggestion ? 'active' : ''}
-                    onMouseDown={() => selectSuggestion(title)}
+                    onMouseDown={() => selectSuggestion(entry)}
                     onMouseEnter={() => setActiveSuggestion(i)}
                   >
-                    {title}
+                    <span className="suggestion-thumb">
+                      {entry.image ? (
+                        <img src={entry.image} alt="" loading="lazy" />
+                      ) : (
+                        <span className="suggestion-thumb-fallback">🎮</span>
+                      )}
+                    </span>
+                    <span className="suggestion-text">
+                      <span className="suggestion-title">{entry.title}</span>
+                      {entry.type && entry.type !== 'game' && (
+                        <span className="suggestion-type">{entry.type}</span>
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>

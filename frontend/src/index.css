@@ -95,6 +95,65 @@ h1 {
   font-size: 0.95rem;
 }
 
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(12px);
+  margin-bottom: 1.2rem;
+  animation: fadeUp 0.4s ease both;
+}
+
+.tab {
+  flex: 1;
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab.active {
+  background: linear-gradient(120deg, var(--accent), #8e7bff);
+  color: white;
+  box-shadow: 0 4px 16px rgba(108, 92, 231, 0.35);
+}
+
+.discover-intro {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.discover-filters {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1rem;
+}
+
+.discover-filters .filter-group {
+  width: 100%;
+}
+
+.discover-filters select,
+.discover-filters input[type="range"] {
+  width: 100%;
+}
+
+.discover-btn {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 0.3rem;
+}
+
 .search-form {
   display: flex;
   gap: 0.6rem;
@@ -345,7 +404,6 @@ h1 {
 .card {
   position: relative;
   display: block;
-  padding: 1.1rem;
   border-radius: 16px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -355,6 +413,28 @@ h1 {
   overflow: hidden;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   animation: cardIn 0.4s ease both;
+}
+
+.card-cover {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.card:hover .card-cover img {
+  transform: scale(1.06);
+}
+
+.card-body {
+  padding: 1rem;
 }
 
 @keyframes cardIn {
@@ -498,7 +578,7 @@ h1 {
   .filter-group.chips { align-self: flex-start; }
   .filters select, .filters input[type="number"], .filters input[type="range"] { width: 100%; }
   .grid { grid-template-columns: 1fr 1fr; gap: 0.7rem; }
-  .card { padding: 0.8rem; }
+  .card-body { padding: 0.8rem; }
   .price { font-size: 1.1rem; }
 }
 

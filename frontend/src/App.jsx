@@ -21,19 +21,26 @@ function OfferCard({ offer, index }) {
       rel="noreferrer"
       style={{ '--accent': sourceColor(offer.source), animationDelay: `${index * 45}ms` }}
     >
-      <div className="card-top">
-        <span className="card-source">{offer.source}</span>
-        <div className="card-top-right">
-          {offer.platform && <span className="card-platform">{offer.platform}</span>}
-          {hasDiscount && <span className="ribbon">-{offer.discount_percent}%</span>}
+      {offer.image && (
+        <div className="card-cover">
+          <img src={offer.image} alt="" loading="lazy" />
         </div>
-      </div>
-      <div className="card-name">{offer.name}</div>
-      <div className="card-price-row">
-        {offer.base_price && offer.base_price !== offer.price && (
-          <span className="base-price">{offer.base_price} {offer.currency}</span>
-        )}
-        <span className="price">{offer.price != null ? `${offer.price} ${offer.currency}` : '—'}</span>
+      )}
+      <div className="card-body">
+        <div className="card-top">
+          <span className="card-source">{offer.source}</span>
+          <div className="card-top-right">
+            {offer.platform && <span className="card-platform">{offer.platform}</span>}
+            {hasDiscount && <span className="ribbon">-{offer.discount_percent}%</span>}
+          </div>
+        </div>
+        <div className="card-name">{offer.name}</div>
+        <div className="card-price-row">
+          {offer.base_price && offer.base_price !== offer.price && (
+            <span className="base-price">{offer.base_price} {offer.currency}</span>
+          )}
+          <span className="price">{offer.price != null ? `${offer.price} ${offer.currency}` : '—'}</span>
+        </div>
       </div>
       <div className="card-glow" />
     </a>
@@ -51,7 +58,7 @@ const SORT_OPTIONS = [
   { value: 'name-asc', label: 'Nom (A-Z)' },
 ]
 
-export default function App() {
+function SearchTab() {
   const [query, setQuery] = useState('')
   const [offers, setOffers] = useState([])
   const [errors, setErrors] = useState([])
@@ -199,6 +206,284 @@ export default function App() {
   )
 
   return (
+    <>
+      <form onSubmit={handleSearch} className="search-form">
+        <div className="search-input-wrap" ref={inputWrapRef}>
+          <svg className="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path d="M20 20L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Rechercher un jeu (ex: Sims, Elden Ring...)"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            onKeyDown={handleKeyDown}
+            autoComplete="off"
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <ul className="suggestions">
+              {suggestions.map((entry, i) => (
+                <li
+                  key={entry.title}
+                  className={i === activeSuggestion ? 'active' : ''}
+                  onMouseDown={() => selectSuggestion(entry)}
+                  onMouseEnter={() => setActiveSuggestion(i)}
+                >
+                  <span className="suggestion-thumb">
+                    {entry.image ? (
+                      <img src={entry.image} alt="" loading="lazy" />
+                    ) : (
+                      <span className="suggestion-thumb-fallback">🎮</span>
+                    )}
+                  </span>
+                  <span className="suggestion-text">
+                    <span className="suggestion-title">{entry.title}</span>
+                    {entry.type && entry.type !== 'game' && (
+                      <span className="suggestion-type">{entry.type}</span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <button type="submit" disabled={loading} className="search-btn">
+          {loading ? <span className="spinner" /> : 'Chercher'}
+        </button>
+      </form>
+
+      {hasSearched && (
+        <div className="filters">
+          <div className="filter-group chips">
+            {Object.keys(SOURCE_META).map((source) => (
+              <button
+                key={source}
+                type="button"
+                className={`chip ${activeSources.has(source) ? 'active' : ''}`}
+                style={{ '--chip-color': sourceColor(source) }}
+                onClick={() => toggleSource(source)}
+              >
+                {SOURCE_META[source].short}
+              </button>
+            ))}
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="sort">Trier par</label>
+            <select id="sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="discount">Remise min. {minDiscount > 0 ? `${minDiscount}%` : ''}</label>
+            <input
+              id="discount"
+              type="range"
+              min="0"
+              max="90"
+              step="5"
+              value={minDiscount}
+              onChange={(e) => setMinDiscount(Number(e.target.value))}
+            />
+          </div>
+
+          <div className="filter-group">
+            <label htmlFor="maxprice">Prix max (€)</label>
+            <input
+              id="maxprice"
+              type="number"
+              min="0"
+              placeholder="illimité"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="price-input"
+            />
+          </div>
+        </div>
+      )}
+
+      {errors.length > 0 && (
+        <div className="errors">
+          {errors.map((err, i) => <div key={i}>⚠ {err}</div>)}
+        </div>
+      )}
+
+      {hasSearched && !loading && (
+        <div className="result-meta">
+          {filteredOffers.length} résultat{filteredOffers.length !== 1 ? 's' : ''}
+          {bestPrice != null && (
+            <span className="best-price-badge">meilleur prix : {bestPrice.toFixed(2)} €</span>
+          )}
+        </div>
+      )}
+
+      <div className="grid">
+        {loading && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} index={i} />)}
+        {!loading && filteredOffers.map((offer, i) => (
+          <OfferCard key={`${offer.source}-${offer.name}-${i}`} offer={offer} index={i} />
+        ))}
+      </div>
+
+      {!loading && hasSearched && filteredOffers.length === 0 && (
+        <div className="empty-state">
+          <p>Aucune offre ne correspond à ces filtres.</p>
+        </div>
+      )}
+
+      {!hasSearched && (
+        <div className="empty-state">
+          <p>Lance une recherche pour comparer les prix.</p>
+        </div>
+      )}
+    </>
+  )
+}
+
+const DISCOVER_SORT_OPTIONS = [
+  { value: 'discount', label: 'Meilleure remise' },
+  { value: 'price_asc', label: 'Prix croissant' },
+  { value: 'price_desc', label: 'Prix décroissant' },
+]
+
+function DiscoverTab() {
+  const [platforms, setPlatforms] = useState([])
+  const [platform, setPlatform] = useState('')
+  const [maxPrice, setMaxPrice] = useState(20)
+  const [minDiscount, setMinDiscount] = useState(50)
+  const [sortBy, setSortBy] = useState('discount')
+
+  const [offers, setOffers] = useState([])
+  const [errors, setErrors] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/platforms`)
+      .then((res) => res.json())
+      .then((data) => setPlatforms(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [])
+
+  async function runDiscover() {
+    setLoading(true)
+    setErrors([])
+    setHasSearched(true)
+    try {
+      const params = new URLSearchParams()
+      if (maxPrice !== '') params.set('max_price', maxPrice)
+      if (minDiscount > 0) params.set('min_discount', minDiscount)
+      if (platform) params.set('platform', platform)
+      params.set('sort_by', sortBy)
+
+      const res = await fetch(`${API_BASE}/api/discover?${params.toString()}`)
+      const data = await res.json()
+      setOffers(data.offers || [])
+      setErrors(data.errors || [])
+    } catch (err) {
+      setErrors([String(err)])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="discover-intro">
+        <p>Pas d'idée précise ? Fixe tes critères et découvre des jeux en promo.</p>
+      </div>
+
+      <div className="filters discover-filters">
+        <div className="filter-group">
+          <label htmlFor="d-platform">Plateforme</label>
+          <select id="d-platform" value={platform} onChange={(e) => setPlatform(e.target.value)}>
+            <option value="">Toutes</option>
+            {platforms.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <label htmlFor="d-price">Prix max : {maxPrice === '' ? 'illimité' : `${maxPrice} €`}</label>
+          <input
+            id="d-price"
+            type="range"
+            min="0"
+            max="80"
+            step="5"
+            value={maxPrice === '' ? 80 : maxPrice}
+            onChange={(e) => setMaxPrice(Number(e.target.value))}
+          />
+        </div>
+
+        <div className="filter-group">
+          <label htmlFor="d-discount">Remise min. {minDiscount}%</label>
+          <input
+            id="d-discount"
+            type="range"
+            min="0"
+            max="90"
+            step="5"
+            value={minDiscount}
+            onChange={(e) => setMinDiscount(Number(e.target.value))}
+          />
+        </div>
+
+        <div className="filter-group">
+          <label htmlFor="d-sort">Trier par</label>
+          <select id="d-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            {DISCOVER_SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <button type="button" className="search-btn discover-btn" onClick={runDiscover} disabled={loading}>
+          {loading ? <span className="spinner" /> : "Trouver des idées"}
+        </button>
+      </div>
+
+      {errors.length > 0 && (
+        <div className="errors">
+          {errors.map((err, i) => <div key={i}>⚠ {err}</div>)}
+        </div>
+      )}
+
+      {hasSearched && !loading && (
+        <div className="result-meta">{offers.length} suggestion{offers.length !== 1 ? 's' : ''}</div>
+      )}
+
+      <div className="grid">
+        {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} index={i} />)}
+        {!loading && offers.map((offer, i) => (
+          <OfferCard key={`${offer.source}-${offer.name}-${i}`} offer={offer} index={i} />
+        ))}
+      </div>
+
+      {!loading && hasSearched && offers.length === 0 && (
+        <div className="empty-state">
+          <p>Aucune offre ne correspond à ces critères, élargis un peu.</p>
+        </div>
+      )}
+
+      {!hasSearched && (
+        <div className="empty-state">
+          <p>Règle tes critères puis lance "Trouver des idées".</p>
+        </div>
+      )}
+    </>
+  )
+}
+
+export default function App() {
+  const [tab, setTab] = useState('search')
+
+  return (
     <div className="app-bg">
       <div className="orb orb-1" />
       <div className="orb orb-2" />
@@ -211,139 +496,24 @@ export default function App() {
           <p className="subtitle">IsThereAnyDeal + Instant Gaming, comparés en un coup d'œil</p>
         </header>
 
-        <form onSubmit={handleSearch} className="search-form">
-          <div className="search-input-wrap" ref={inputWrapRef}>
-            <svg className="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none">
-              <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-              <path d="M20 20L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Rechercher un jeu (ex: Sims, Elden Ring...)"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              onKeyDown={handleKeyDown}
-              autoComplete="off"
-            />
-            {showSuggestions && suggestions.length > 0 && (
-              <ul className="suggestions">
-                {suggestions.map((entry, i) => (
-                  <li
-                    key={entry.title}
-                    className={i === activeSuggestion ? 'active' : ''}
-                    onMouseDown={() => selectSuggestion(entry)}
-                    onMouseEnter={() => setActiveSuggestion(i)}
-                  >
-                    <span className="suggestion-thumb">
-                      {entry.image ? (
-                        <img src={entry.image} alt="" loading="lazy" />
-                      ) : (
-                        <span className="suggestion-thumb-fallback">🎮</span>
-                      )}
-                    </span>
-                    <span className="suggestion-text">
-                      <span className="suggestion-title">{entry.title}</span>
-                      {entry.type && entry.type !== 'game' && (
-                        <span className="suggestion-type">{entry.type}</span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <button type="submit" disabled={loading} className="search-btn">
-            {loading ? <span className="spinner" /> : 'Chercher'}
+        <nav className="tabs">
+          <button
+            type="button"
+            className={`tab ${tab === 'search' ? 'active' : ''}`}
+            onClick={() => setTab('search')}
+          >
+            🔍 Rechercher un jeu
           </button>
-        </form>
+          <button
+            type="button"
+            className={`tab ${tab === 'discover' ? 'active' : ''}`}
+            onClick={() => setTab('discover')}
+          >
+            ✨ Trouver une idée
+          </button>
+        </nav>
 
-        {hasSearched && (
-          <div className="filters">
-            <div className="filter-group chips">
-              {Object.keys(SOURCE_META).map((source) => (
-                <button
-                  key={source}
-                  type="button"
-                  className={`chip ${activeSources.has(source) ? 'active' : ''}`}
-                  style={{ '--chip-color': sourceColor(source) }}
-                  onClick={() => toggleSource(source)}
-                >
-                  {SOURCE_META[source].short}
-                </button>
-              ))}
-            </div>
-
-            <div className="filter-group">
-              <label htmlFor="sort">Trier par</label>
-              <select id="sort" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filter-group">
-              <label htmlFor="discount">Remise min. {minDiscount > 0 ? `${minDiscount}%` : ''}</label>
-              <input
-                id="discount"
-                type="range"
-                min="0"
-                max="90"
-                step="5"
-                value={minDiscount}
-                onChange={(e) => setMinDiscount(Number(e.target.value))}
-              />
-            </div>
-
-            <div className="filter-group">
-              <label htmlFor="maxprice">Prix max (€)</label>
-              <input
-                id="maxprice"
-                type="number"
-                min="0"
-                placeholder="illimité"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                className="price-input"
-              />
-            </div>
-          </div>
-        )}
-
-        {errors.length > 0 && (
-          <div className="errors">
-            {errors.map((err, i) => <div key={i}>⚠ {err}</div>)}
-          </div>
-        )}
-
-        {hasSearched && !loading && (
-          <div className="result-meta">
-            {filteredOffers.length} résultat{filteredOffers.length !== 1 ? 's' : ''}
-            {bestPrice != null && (
-              <span className="best-price-badge">meilleur prix : {bestPrice.toFixed(2)} €</span>
-            )}
-          </div>
-        )}
-
-        <div className="grid">
-          {loading && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} index={i} />)}
-          {!loading && filteredOffers.map((offer, i) => (
-            <OfferCard key={`${offer.source}-${offer.name}-${i}`} offer={offer} index={i} />
-          ))}
-        </div>
-
-        {!loading && hasSearched && filteredOffers.length === 0 && (
-          <div className="empty-state">
-            <p>Aucune offre ne correspond à ces filtres.</p>
-          </div>
-        )}
-
-        {!hasSearched && (
-          <div className="empty-state">
-            <p>Lance une recherche pour comparer les prix.</p>
-          </div>
-        )}
+        {tab === 'search' ? <SearchTab /> : <DiscoverTab />}
       </div>
     </div>
   )

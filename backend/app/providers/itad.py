@@ -77,6 +77,7 @@ async def search(query: str) -> list[Offer]:
         if not entry or not entry.get("deals"):
             continue
         best = entry["deals"][0]
+        assets = game.get("assets") or {}
         offers.append(
             Offer(
                 source="IsThereAnyDeal",
@@ -87,6 +88,7 @@ async def search(query: str) -> list[Offer]:
                 discount_percent=best["cut"],
                 url=best["url"],
                 platform=best["shop"]["name"],
+                image=assets.get("boxart") or assets.get("banner145"),
             )
         )
     return offers

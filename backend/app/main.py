@@ -35,6 +35,42 @@ async def suggest(q: str = Query(min_length=1)):
     return titles
 
 
+@app.get("/api/platforms")
+async def platforms():
+    return instant_gaming.PLATFORMS
+
+
+@app.get("/api/discover", response_model=SearchResponse)
+async def discover(
+    min_price: float | None = None,
+    max_price: float | None = None,
+    min_discount: int = 0,
+    platform: str | None = None,
+    sort_by: str = "discount",
+):
+    cache_key = f"discover:{min_price}:{max_price}:{min_discount}:{platform}:{sort_by}"
+    cached = await cache_get(cache_key)
+    if cached:
+        return cached
+
+    try:
+        offers = await instant_gaming.discover(
+            min_price=min_price,
+            max_price=max_price,
+            min_discount=min_discount,
+            platform=platform,
+            sort_by=sort_by,
+        )
+        errors = []
+    except Exception as exc:
+        offers = []
+        errors = [f"instant_gaming: {exc}"]
+
+    response = SearchResponse(query="", offers=offers, errors=errors)
+    await cache_set(cache_key, response.model_dump(), ttl=600)
+    return response
+
+
 @app.get("/api/search", response_model=SearchResponse)
 async def search(q: str = Query(min_length=2)):
     cache_key = f"search:{q.lower()}"

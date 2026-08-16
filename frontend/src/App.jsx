@@ -184,8 +184,10 @@ function GameDetailsModal({ offer, onClose }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-drag-handle" />
         <button className="modal-close" onClick={onClose} aria-label="Fermer">✕</button>
 
+        <div className="modal-scroll">
         {hero && (
           <div className="modal-hero">
             <img src={hero} alt="" />
@@ -194,6 +196,7 @@ function GameDetailsModal({ offer, onClose }) {
         )}
 
         <div className="modal-content">
+          <span className="modal-source" style={{ '--src-color': sourceColor(offer.source) }}>{offer.source}</span>
           <h2>{offer.name}</h2>
 
           {loading && <div className="modal-loading"><span className="spinner" /> Chargement des infos...</div>}
@@ -246,20 +249,21 @@ function GameDetailsModal({ offer, onClose }) {
               )}
             </>
           )}
+        </div>
+        </div>
 
-          <div className="modal-offer">
-            <div>
-              {offer.base_price && offer.base_price !== offer.price && (
-                <span className="base-price">{offer.base_price} {offer.currency}</span>
-              )}
-              <span className="price big">{offer.price != null ? `${offer.price} ${offer.currency}` : '—'}</span>
-            </div>
-            <div className="modal-offer-actions">
-              <ShareButton offer={offer} className="modal-share-btn" />
-              <a className="search-btn" href={offer.url} target="_blank" rel="noreferrer">
-                Acheter sur {offer.source} ↗
-              </a>
-            </div>
+        <div className="modal-offer">
+          <div>
+            {offer.base_price && offer.base_price !== offer.price && (
+              <span className="base-price">{offer.base_price} {offer.currency}</span>
+            )}
+            <span className="price big">{offer.price != null ? `${offer.price} ${offer.currency}` : '—'}</span>
+          </div>
+          <div className="modal-offer-actions">
+            <ShareButton offer={offer} className="modal-share-btn" />
+            <a className="search-btn" href={offer.url} target="_blank" rel="noreferrer">
+              Acheter sur {offer.source} ↗
+            </a>
           </div>
         </div>
       </div>

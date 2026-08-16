@@ -11,23 +11,54 @@ function sourceColor(source) {
   return SOURCE_META[source]?.color || '#4f8cff'
 }
 
+// navigator.share / navigator.clipboard exigent un contexte sécurisé (HTTPS ou
+// localhost) — sur ce réseau local en http:// simple, les deux sont indisponibles
+// ou lèvent une exception : on retombe sur un textarea + execCommand('copy'),
+// technique dépréciée mais toujours fonctionnelle hors contexte sécurisé.
+function legacyCopy(text) {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  let ok = false
+  try {
+    ok = document.execCommand('copy')
+  } catch {
+    ok = false
+  }
+  document.body.removeChild(textarea)
+  return ok
+}
+
 async function shareOffer(offer, onFeedback) {
   const price = offer.price != null ? `${offer.price} ${offer.currency}` : ''
   const text = `${offer.name}${price ? ` — ${price} sur ${offer.source}` : ''}`
+
   if (navigator.share) {
     try {
       await navigator.share({ title: offer.name, text, url: offer.url })
-    } catch {
-      // partage annulé par l'utilisateur, rien à faire
+      return
+    } catch (err) {
+      if (err?.name === 'AbortError') return // partage annulé par l'utilisateur
+      // sinon on retente via la copie ci-dessous
     }
-    return
   }
-  try {
-    await navigator.clipboard.writeText(offer.url)
-    onFeedback?.('Lien copié !')
-  } catch {
-    onFeedback?.('Impossible de copier le lien')
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(offer.url)
+      onFeedback?.('Lien copié !')
+      return
+    } catch {
+      // clipboard API indisponible (contexte non sécurisé) : on retombe sur legacyCopy
+    }
   }
+
+  onFeedback?.(legacyCopy(offer.url) ? 'Lien copié !' : 'Impossible de copier le lien')
 }
 
 function ShareButton({ offer, className = '' }) {

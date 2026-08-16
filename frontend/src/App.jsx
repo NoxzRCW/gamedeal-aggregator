@@ -197,6 +197,7 @@ const SORT_OPTIONS = [
 function SearchTab({ onOpenDetails }) {
   const [query, setQuery] = useState('')
   const [offers, setOffers] = useState([])
+  const [bundleDeals, setBundleDeals] = useState([])
   const [errors, setErrors] = useState([])
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
@@ -264,6 +265,7 @@ function SearchTab({ onOpenDetails }) {
       const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(value)}`)
       const data = await res.json()
       setOffers(data.offers || [])
+      setBundleDeals(data.bundle_deals || [])
       setErrors(data.errors || [])
     } catch (err) {
       setErrors([String(err)])
@@ -449,6 +451,26 @@ function SearchTab({ onOpenDetails }) {
         </div>
       )}
 
+      {!loading && bundleDeals.length > 0 && (
+        <div className="bundle-callouts">
+          {bundleDeals.map((b) => (
+            <a key={b.bundle_url} href={b.bundle_url} target="_blank" rel="noreferrer" className="bundle-callout">
+              {b.bundle_image && <img src={b.bundle_image} alt="" className="bundle-callout-img" />}
+              <div className="bundle-callout-body">
+                <div className="bundle-callout-tag">💡 Meilleur plan : bundle</div>
+                <div className="bundle-callout-title">{b.bundle_title}</div>
+                <div className="bundle-callout-text">
+                  "{b.matched_item}" + {b.items_count - 1} autre{b.items_count - 1 !== 1 ? 's' : ''} jeu{b.items_count - 1 !== 1 ? 'x' : ''} pour <strong>{b.entry_price.toFixed(2)} {b.currency}</strong>
+                  {b.savings != null && b.savings > 0 && (
+                    <span className="bundle-savings"> · économise {b.savings.toFixed(2)} €</span>
+                  )}
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+
       {hasSearched && !loading && (
         <div className="result-meta">
           {filteredOffers.length} résultat{filteredOffers.length !== 1 ? 's' : ''}
@@ -616,6 +638,77 @@ function DiscoverTab({ onOpenDetails }) {
   )
 }
 
+function BundleCard({ bundle, index }) {
+  return (
+    <a
+      className="card bundle-card"
+      href={bundle.url}
+      target="_blank"
+      rel="noreferrer"
+      style={{ animationDelay: `${index * 45}ms` }}
+    >
+      {bundle.image && (
+        <div className="card-cover">
+          <img src={bundle.image} alt="" loading="lazy" />
+        </div>
+      )}
+      <div className="card-body">
+        <div className="card-name">{bundle.title}</div>
+        {bundle.blurb && <p className="bundle-blurb">{bundle.blurb}</p>}
+        <div className="tag-row">
+          {bundle.highlights?.map((h) => <span key={h} className="tag outline">{h}</span>)}
+        </div>
+        <div className="card-price-row">
+          <span className="price">
+            {bundle.entry_price != null ? `dès ${bundle.entry_price.toFixed(2)} ${bundle.currency}` : 'Pay What You Want'}
+          </span>
+        </div>
+        {bundle.end_date && (
+          <div className="bundle-end-date">⏳ jusqu'au {new Date(bundle.end_date).toLocaleDateString('fr-FR')}</div>
+        )}
+      </div>
+    </a>
+  )
+}
+
+function BundlesTab() {
+  const [bundles, setBundles] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+    fetch(`${API_BASE}/api/bundles`)
+      .then((res) => res.json())
+      .then((data) => setBundles(Array.isArray(data) ? data : []))
+      .catch((err) => setError(String(err)))
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <>
+      <div className="discover-intro">
+        <p>Bundles Humble Bundle actifs : plusieurs jeux pour un seul prix, souvent bien plus rentable qu'à l'unité.</p>
+      </div>
+
+      {error && <div className="errors">⚠ {error}</div>}
+
+      <div className="grid">
+        {loading && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} index={i} />)}
+        {!loading && bundles.map((b, i) => (
+          <BundleCard key={b.machine_name} bundle={b} index={i} />
+        ))}
+      </div>
+
+      {!loading && bundles.length === 0 && !error && (
+        <div className="empty-state">
+          <p>Aucun bundle actif pour le moment.</p>
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function App() {
   const [tab, setTab] = useState('search')
   const [detailsOffer, setDetailsOffer] = useState(null)
@@ -630,7 +723,7 @@ export default function App() {
           <h1>
             <span className="brand-gradient">GameDeal</span> Aggregator
           </h1>
-          <p className="subtitle">IsThereAnyDeal + Instant Gaming, comparés en un coup d'œil</p>
+          <p className="subtitle">ITAD + Instant Gaming + Humble Bundle, comparés en un coup d'œil</p>
         </header>
 
         <nav className="tabs">
@@ -639,22 +732,27 @@ export default function App() {
             className={`tab ${tab === 'search' ? 'active' : ''}`}
             onClick={() => setTab('search')}
           >
-            🔍 Rechercher un jeu
+            🔍 Rechercher
           </button>
           <button
             type="button"
             className={`tab ${tab === 'discover' ? 'active' : ''}`}
             onClick={() => setTab('discover')}
           >
-            ✨ Trouver une idée
+            ✨ Idées
+          </button>
+          <button
+            type="button"
+            className={`tab ${tab === 'bundles' ? 'active' : ''}`}
+            onClick={() => setTab('bundles')}
+          >
+            📦 Bundles
           </button>
         </nav>
 
-        {tab === 'search' ? (
-          <SearchTab onOpenDetails={setDetailsOffer} />
-        ) : (
-          <DiscoverTab onOpenDetails={setDetailsOffer} />
-        )}
+        {tab === 'search' && <SearchTab onOpenDetails={setDetailsOffer} />}
+        {tab === 'discover' && <DiscoverTab onOpenDetails={setDetailsOffer} />}
+        {tab === 'bundles' && <BundlesTab />}
       </div>
 
       {detailsOffer && <GameDetailsModal offer={detailsOffer} onClose={() => setDetailsOffer(null)} />}

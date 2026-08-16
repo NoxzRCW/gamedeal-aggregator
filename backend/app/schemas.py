@@ -13,7 +13,33 @@ class Offer(BaseModel):
     image: str | None = None
 
 
+class BundleDeal(BaseModel):
+    bundle_title: str
+    bundle_url: str
+    bundle_image: str | None = None
+    entry_price: float
+    currency: str = "EUR"
+    items_count: int
+    matched_item: str
+    matched_item_msrp: float | None = None
+    end_date: str | None = None
+    savings: float | None = None
+
+
+class Bundle(BaseModel):
+    machine_name: str
+    title: str
+    url: str
+    image: str | None = None
+    blurb: str | None = None
+    highlights: list[str] = []
+    entry_price: float | None = None
+    currency: str = "EUR"
+    end_date: str | None = None
+
+
 class SearchResponse(BaseModel):
     query: str
     offers: list[Offer]
+    bundle_deals: list[BundleDeal] = []
     errors: list[str] = []

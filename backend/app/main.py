@@ -153,23 +153,44 @@ async def search(q: str = Query(min_length=2)):
                 for o in offers
                 if o.price is not None and (item_key in o.name.lower() or o.name.lower() in item_key)
             ]
+            relevant_best = min((o.price for o in relevant_offers), default=None)
 
-            if relevant_offers:
-                relevant_best = min(o.price for o in relevant_offers)
-                is_better = match["entry_price"] < relevant_best
-                savings = round(relevant_best - match["entry_price"], 2)
-            elif match.get("matched_item_msrp"):
-                # pas d'offre individuelle trouvée : on compare au prix officiel (MSRP)
-                # et on n'affiche que si le gain est net, pour éviter le bruit
-                is_better = match["entry_price"] < match["matched_item_msrp"] * 0.6
-                savings = round(match["matched_item_msrp"] - match["entry_price"], 2)
-            else:
-                is_better = False
-                savings = None
+            entry_price = match["entry_price"]
+            item_msrp = match.get("matched_item_msrp") or 0
+            total_value = match.get("total_value") or 0
+            other_items_value = round(max(total_value - item_msrp, 0), 2)
 
-            if is_better:
-                bundle_deals.append(BundleDeal(**match, savings=savings))
-        bundle_deals.sort(key=lambda d: d.entry_price)
+            deal_type = None
+            savings = None
+            extra_cost = None
+
+            if relevant_best is not None and entry_price < relevant_best:
+                # cas simple : le bundle est directement moins cher que le jeu ciblé seul
+                deal_type = "cheaper"
+                savings = round(relevant_best - entry_price, 2)
+            elif relevant_best is not None and entry_price >= relevant_best and other_items_value > 0:
+                # le jeu seul est moins cher, mais les AUTRES jeux du bundle peuvent
+                # rendre l'ensemble plus rentable si leur valeur dépasse largement le surcoût
+                extra_cost = round(entry_price - relevant_best, 2)
+                if other_items_value >= extra_cost * 3:
+                    deal_type = "value"
+            elif relevant_best is None and item_msrp:
+                # pas d'offre solo trouvée pour ce jeu précis : on compare au prix officiel
+                if entry_price < item_msrp * 0.6:
+                    deal_type = "cheaper"
+                    savings = round(item_msrp - entry_price, 2)
+
+            if deal_type:
+                bundle_deals.append(
+                    BundleDeal(
+                        **match,
+                        savings=savings,
+                        deal_type=deal_type,
+                        extra_cost=extra_cost,
+                        other_items_value=other_items_value or None,
+                    )
+                )
+        bundle_deals.sort(key=lambda d: (d.deal_type != "cheaper", d.entry_price))
 
     response = SearchResponse(query=q, offers=offers, bundle_deals=bundle_deals, errors=errors)
     await cache_set(cache_key, response.model_dump())

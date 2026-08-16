@@ -454,17 +454,34 @@ function SearchTab({ onOpenDetails }) {
       {!loading && bundleDeals.length > 0 && (
         <div className="bundle-callouts">
           {bundleDeals.map((b) => (
-            <a key={b.bundle_url} href={b.bundle_url} target="_blank" rel="noreferrer" className="bundle-callout">
+            <a
+              key={b.bundle_url}
+              href={b.bundle_url}
+              target="_blank"
+              rel="noreferrer"
+              className={`bundle-callout ${b.deal_type === 'value' ? 'value' : ''}`}
+            >
               {b.bundle_image && <img src={b.bundle_image} alt="" className="bundle-callout-img" />}
               <div className="bundle-callout-body">
-                <div className="bundle-callout-tag">💡 Meilleur plan : bundle</div>
-                <div className="bundle-callout-title">{b.bundle_title}</div>
-                <div className="bundle-callout-text">
-                  "{b.matched_item}" + {b.items_count - 1} autre{b.items_count - 1 !== 1 ? 's' : ''} jeu{b.items_count - 1 !== 1 ? 'x' : ''} pour <strong>{b.entry_price.toFixed(2)} {b.currency}</strong>
-                  {b.savings != null && b.savings > 0 && (
-                    <span className="bundle-savings"> · économise {b.savings.toFixed(2)} €</span>
-                  )}
+                <div className="bundle-callout-tag">
+                  {b.deal_type === 'value' ? '📦 Rentable en bundle' : '💡 Meilleur plan : bundle'}
                 </div>
+                <div className="bundle-callout-title">{b.bundle_title}</div>
+
+                {b.deal_type === 'cheaper' ? (
+                  <div className="bundle-callout-text">
+                    "{b.matched_item}" + {b.items_count - 1} autre{b.items_count - 1 !== 1 ? 's' : ''} jeu{b.items_count - 1 !== 1 ? 'x' : ''} pour <strong>{b.entry_price.toFixed(2)} {b.currency}</strong>
+                    {b.savings != null && b.savings > 0 && (
+                      <span className="bundle-savings"> · économise {b.savings.toFixed(2)} €</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bundle-callout-text">
+                    "{b.matched_item}" est {b.extra_cost?.toFixed(2)} € plus cher dans ce bundle, mais tu récupères aussi{' '}
+                    {b.items_count - 1} autres jeux valant <strong>{b.other_items_value?.toFixed(2)} €</strong> pour{' '}
+                    <strong>{b.entry_price.toFixed(2)} {b.currency}</strong> au total.
+                  </div>
+                )}
               </div>
             </a>
           ))}

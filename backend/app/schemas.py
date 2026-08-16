@@ -22,8 +22,12 @@ class BundleDeal(BaseModel):
     items_count: int
     matched_item: str
     matched_item_msrp: float | None = None
+    total_value: float | None = None
     end_date: str | None = None
     savings: float | None = None
+    deal_type: str = "cheaper"  # "cheaper" (moins cher direct) ou "value" (rentable via la valeur globale)
+    extra_cost: float | None = None
+    other_items_value: float | None = None
 
 
 class Bundle(BaseModel):

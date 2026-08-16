@@ -117,10 +117,10 @@ async def build_deal_index(max_bundles: int = 20) -> dict:
     for bundle, detail in zip(bundles, details):
         if not isinstance(detail, dict) or not detail.get("entry_price"):
             continue
-        for item in detail["items"]:
-            name = item.get("name")
-            if not name:
-                continue
+        items = [it for it in detail["items"] if it.get("name")]
+        total_value = sum(it.get("msrp") or 0 for it in items)
+        for item in items:
+            name = item["name"]
             key = name.lower()
             index.setdefault(key, []).append(
                 {
@@ -129,9 +129,10 @@ async def build_deal_index(max_bundles: int = 20) -> dict:
                     "bundle_image": bundle["image"],
                     "entry_price": detail["entry_price"],
                     "currency": "EUR",
-                    "items_count": len(detail["items"]),
+                    "items_count": len(items),
                     "matched_item": name,
                     "matched_item_msrp": item.get("msrp"),
+                    "total_value": round(total_value, 2),
                     "end_date": bundle["end_date"],
                 }
             )

@@ -862,6 +862,19 @@ h1 {
   animation: cardIn 0.4s ease both;
 }
 
+.bundle-callout.value {
+  background: linear-gradient(120deg, rgba(108, 92, 231, 0.14), rgba(0, 217, 163, 0.08));
+  border-color: rgba(108, 92, 231, 0.4);
+}
+
+.bundle-callout.value .bundle-callout-tag {
+  color: #a99bff;
+}
+
+.bundle-callout.value:hover {
+  border-color: var(--accent);
+}
+
 .bundle-callout:hover {
   transform: translateY(-2px);
   border-color: #ffc857;

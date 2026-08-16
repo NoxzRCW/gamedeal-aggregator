@@ -6,6 +6,18 @@ from ..text_utils import sanitize_title as _sanitize_title
 
 BASE_URL = "https://api.isthereanydeal.com"
 
+# ITAD ne couvre que les boutiques PC dématérialisées (pas de PlayStation/Xbox/Switch) ;
+# ids récupérés via GET /service/shops/v1
+SHOP_IDS = {
+    "Steam": 61,
+    "EA App": 52,
+    "Ubisoft Connect": 62,
+    "Epic Games": 16,
+    "GOG.com": 35,
+    "Microsoft Store": 48,
+}
+PC_SHOP_IDS = list(SHOP_IDS.values())
+
 
 async def suggest(query: str, limit: int = 8) -> list[dict]:
     if not settings.itad_api_key:
@@ -101,3 +113,80 @@ async def search(query: str, include_dlc: bool = False) -> list[Offer]:
             )
         )
     return offers
+
+
+async def discover(
+    min_price: float | None = None,
+    max_price: float | None = None,
+    min_discount: int = 0,
+    platform: str | None = None,
+    include_dlc: bool = False,
+    sort_by: str = "discount",
+) -> tuple[list[Offer], int]:
+    """Parcourt les deals ITAD actuels (PC uniquement) selon des critères prix/remise/boutique.
+
+    Retourne une liste vide sans erreur quand le filtre plateforme cible une
+    console (Xbox/PlayStation/Switch) : ITAD ne couvre pas ces boutiques.
+    """
+    if not settings.itad_api_key:
+        raise RuntimeError("ITAD_API_KEY manquant")
+
+    shops: list[int] | None = None
+    if platform:
+        if platform == "PC":
+            shops = PC_SHOP_IDS
+        elif platform == "Consoles":
+            return [], 0
+        elif platform in SHOP_IDS:
+            shops = [SHOP_IDS[platform]]
+        else:
+            # plateforme console spécifique non couverte par ITAD
+            return [], 0
+
+    sort_map = {"discount": "-cut", "price_asc": "price", "price_desc": "-price"}
+    body = {
+        "country": "FR",
+        "offset": 0,
+        "limit": 200,
+        "sort": sort_map.get(sort_by, "-cut"),
+        "filter": {
+            "cut": {"min": min_discount or 0, "max": None},
+            "price": {"min": None, "max": max_price},
+            "type": [1] if not include_dlc else [1, 2],
+        },
+    }
+    if min_price is not None:
+        body["filter"]["price"]["min"] = min_price
+    if shops is not None:
+        body["shops"] = shops
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            f"{BASE_URL}/deals/v2", params={"key": settings.itad_api_key}, json=body
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+    offers = []
+    for game in data.get("list", []):
+        deal = game["deal"]
+        assets = game.get("assets") or {}
+        offers.append(
+            Offer(
+                source="IsThereAnyDeal",
+                name=game["title"],
+                price=deal["price"]["amount"],
+                base_price=deal["regular"]["amount"],
+                currency=deal["price"]["currency"],
+                discount_percent=deal["cut"],
+                url=deal["url"],
+                platform=deal["shop"]["name"],
+                image=assets.get("boxart") or assets.get("banner145"),
+                is_dlc=game.get("type") == "dlc",
+            )
+        )
+
+    # /deals/v2 ne renvoie pas de total exact ; hasMore + nextOffset servent
+    # d'indicateur, on approxime le total par le nombre chargé (+1 si plus dispo)
+    total = len(offers) + (1 if data.get("hasMore") else 0)
+    return offers, total

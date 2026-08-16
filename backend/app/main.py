@@ -73,16 +73,22 @@ async def discover(
     offset: int = 0,
     page_size: int = 24,
 ):
-    # le résultat complet (jusqu'à 1000, trié) est mis en cache une fois pour tous
-    # les offsets d'une même combinaison de filtres, évitant de refaire l'appel
-    # Algolia à chaque clic sur "Charger plus"
+    # le résultat complet (jusqu'à ~1200, trié) est mis en cache une fois pour tous
+    # les offsets d'une même combinaison de filtres, évitant de refaire les appels
+    # Algolia/ITAD à chaque clic sur "Charger plus"
     cache_key = f"discover:{min_price}:{max_price}:{min_discount}:{platform}:{genre}:{sort_by}:{include_dlc}"
     cached = await cache_get(cache_key)
     if cached is not None:
         all_offers, total, errors = cached["offers"], cached["total"], cached["errors"]
     else:
-        try:
-            offers, total = await instant_gaming.discover(
+        # ITAD ne sait filtrer ni par thème/genre ni par boutique console : on le
+        # désactive proprement plutôt que de renvoyer des résultats hors-critère
+        skip_itad = bool(genre) or platform == "Consoles" or (
+            platform and platform not in ("PC", *itad.SHOP_IDS)
+        )
+
+        tasks = [
+            instant_gaming.discover(
                 min_price=min_price,
                 max_price=max_price,
                 min_discount=min_discount,
@@ -91,10 +97,39 @@ async def discover(
                 sort_by=sort_by,
                 include_dlc=include_dlc,
             )
-            errors = []
-        except Exception as exc:
-            offers, total = [], 0
-            errors = [f"instant_gaming: {exc}"]
+        ]
+        if not skip_itad:
+            tasks.append(
+                itad.discover(
+                    min_price=min_price,
+                    max_price=max_price,
+                    min_discount=min_discount,
+                    platform=platform,
+                    include_dlc=include_dlc,
+                    sort_by=sort_by,
+                )
+            )
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        offers = []
+        total = 0
+        errors = []
+        source_names = ["instant_gaming"] + (["itad"] if not skip_itad else [])
+        for source_name, result in zip(source_names, results):
+            if isinstance(result, Exception):
+                errors.append(f"{source_name}: {result}")
+            else:
+                src_offers, src_total = result
+                offers.extend(src_offers)
+                total += src_total
+
+        if sort_by == "price_asc":
+            offers.sort(key=lambda o: (o.price is None, o.price))
+        elif sort_by == "price_desc":
+            offers.sort(key=lambda o: -(o.price or 0))
+        else:
+            offers.sort(key=lambda o: -(o.discount_percent or 0))
 
         all_offers = [o.model_dump() for o in offers]
         await cache_set(cache_key, {"offers": all_offers, "total": total, "errors": errors}, ttl=600)

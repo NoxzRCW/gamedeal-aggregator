@@ -607,6 +607,7 @@ function DiscoverTab({ onOpenDetails }) {
             <option value="">Toutes</option>
             {Object.entries(platformGroups).map(([group, list]) => (
               <optgroup key={group} label={group}>
+                <option value={group}>{group === 'PC' ? 'Tous les PC' : 'Toutes les consoles'}</option>
                 {list.map((p) => (
                   <option key={p} value={p}>{p}</option>
                 ))}

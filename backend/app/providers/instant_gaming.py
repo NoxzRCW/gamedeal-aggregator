@@ -106,7 +106,11 @@ async def discover(
     if min_discount:
         filters.append(f"discount>={min_discount}")
     if platform:
-        filters.append(f'platform:"{platform}"')
+        if platform in PLATFORM_GROUPS:
+            group_filter = " OR ".join(f'platform:"{p}"' for p in PLATFORM_GROUPS[platform])
+            filters.append(f"({group_filter})")
+        else:
+            filters.append(f'platform:"{platform}"')
     if genre and genre in GENRE_BY_SLUG:
         filters.append(f"cat_ids:{GENRE_BY_SLUG[genre]}")
 

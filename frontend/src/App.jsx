@@ -11,19 +11,20 @@ function sourceColor(source) {
   return SOURCE_META[source]?.color || '#4f8cff'
 }
 
-function OfferCard({ offer, index }) {
+function OfferCard({ offer, index, onOpenDetails }) {
   const hasDiscount = !!offer.discount_percent
   return (
-    <a
+    <div
       className="card"
-      href={offer.url}
-      target="_blank"
-      rel="noreferrer"
       style={{ '--accent': sourceColor(offer.source), animationDelay: `${index * 45}ms` }}
+      onClick={() => onOpenDetails(offer)}
+      role="button"
+      tabIndex={0}
     >
       {offer.image && (
         <div className="card-cover">
           <img src={offer.image} alt="" loading="lazy" />
+          <span className="card-cover-hint">Voir les infos</span>
         </div>
       )}
       <div className="card-body">
@@ -41,9 +42,144 @@ function OfferCard({ offer, index }) {
           )}
           <span className="price">{offer.price != null ? `${offer.price} ${offer.currency}` : '—'}</span>
         </div>
+        <a
+          className="buy-link"
+          href={offer.url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Acheter sur {offer.source} ↗
+        </a>
       </div>
       <div className="card-glow" />
-    </a>
+    </div>
+  )
+}
+
+function ScoreBadge({ source, score }) {
+  const good = score >= 75
+  const mid = score >= 50
+  return (
+    <div className={`score-badge ${good ? 'good' : mid ? 'mid' : 'low'}`}>
+      <span className="score-value">{score}</span>
+      <span className="score-source">{source}</span>
+    </div>
+  )
+}
+
+function GameDetailsModal({ offer, onClose }) {
+  const [details, setDetails] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+
+  useEffect(() => {
+    if (!offer) return
+    setDetails(null)
+    setNotFound(false)
+    setLoading(true)
+    fetch(`${API_BASE}/api/details?title=${encodeURIComponent(offer.name)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data) setNotFound(true)
+        else setDetails(data)
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false))
+  }, [offer])
+
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  if (!offer) return null
+
+  const hero = details?.header_image || details?.banner || offer.image
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Fermer">✕</button>
+
+        {hero && (
+          <div className="modal-hero">
+            <img src={hero} alt="" />
+            <div className="modal-hero-fade" />
+          </div>
+        )}
+
+        <div className="modal-content">
+          <h2>{offer.name}</h2>
+
+          {loading && <div className="modal-loading"><span className="spinner" /> Chargement des infos...</div>}
+
+          {!loading && notFound && (
+            <p className="modal-empty">Pas de détails disponibles pour ce jeu, mais tu peux toujours consulter l'offre.</p>
+          )}
+
+          {!loading && details && (
+            <>
+              {details.description && <p className="modal-description">{details.description}</p>}
+
+              {details.reviews?.length > 0 && (
+                <div className="score-row">
+                  {details.reviews.map((r) => (
+                    <ScoreBadge key={r.source} source={r.source} score={r.score} />
+                  ))}
+                </div>
+              )}
+
+              {details.genres?.length > 0 && (
+                <div className="tag-row">
+                  {details.genres.map((g) => <span key={g} className="tag genre">{g}</span>)}
+                </div>
+              )}
+
+              {details.tags?.length > 0 && (
+                <div className="tag-row">
+                  {details.tags.map((t) => <span key={t} className="tag">{t}</span>)}
+                </div>
+              )}
+
+              <div className="modal-meta">
+                {details.release_date && <span>📅 {details.release_date}</span>}
+                {details.developers?.length > 0 && <span>🛠 {details.developers.join(', ')}</span>}
+              </div>
+
+              {details.categories?.length > 0 && (
+                <div className="tag-row muted-tags">
+                  {details.categories.map((c) => <span key={c} className="tag outline">{c}</span>)}
+                </div>
+              )}
+
+              {details.screenshots?.length > 0 && (
+                <div className="screenshot-row">
+                  {details.screenshots.map((s) => (
+                    <img key={s} src={s} alt="" loading="lazy" />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="modal-offer">
+            <div>
+              {offer.base_price && offer.base_price !== offer.price && (
+                <span className="base-price">{offer.base_price} {offer.currency}</span>
+              )}
+              <span className="price big">{offer.price != null ? `${offer.price} ${offer.currency}` : '—'}</span>
+            </div>
+            <a className="search-btn" href={offer.url} target="_blank" rel="noreferrer">
+              Acheter sur {offer.source} ↗
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -58,7 +194,7 @@ const SORT_OPTIONS = [
   { value: 'name-asc', label: 'Nom (A-Z)' },
 ]
 
-function SearchTab() {
+function SearchTab({ onOpenDetails }) {
   const [query, setQuery] = useState('')
   const [offers, setOffers] = useState([])
   const [errors, setErrors] = useState([])
@@ -325,7 +461,7 @@ function SearchTab() {
       <div className="grid">
         {loading && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} index={i} />)}
         {!loading && filteredOffers.map((offer, i) => (
-          <OfferCard key={`${offer.source}-${offer.name}-${i}`} offer={offer} index={i} />
+          <OfferCard key={`${offer.source}-${offer.name}-${i}`} offer={offer} index={i} onOpenDetails={onOpenDetails} />
         ))}
       </div>
 
@@ -350,7 +486,7 @@ const DISCOVER_SORT_OPTIONS = [
   { value: 'price_desc', label: 'Prix décroissant' },
 ]
 
-function DiscoverTab() {
+function DiscoverTab({ onOpenDetails }) {
   const [platforms, setPlatforms] = useState([])
   const [platform, setPlatform] = useState('')
   const [maxPrice, setMaxPrice] = useState(20)
@@ -461,7 +597,7 @@ function DiscoverTab() {
       <div className="grid">
         {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} index={i} />)}
         {!loading && offers.map((offer, i) => (
-          <OfferCard key={`${offer.source}-${offer.name}-${i}`} offer={offer} index={i} />
+          <OfferCard key={`${offer.source}-${offer.name}-${i}`} offer={offer} index={i} onOpenDetails={onOpenDetails} />
         ))}
       </div>
 
@@ -482,6 +618,7 @@ function DiscoverTab() {
 
 export default function App() {
   const [tab, setTab] = useState('search')
+  const [detailsOffer, setDetailsOffer] = useState(null)
 
   return (
     <div className="app-bg">
@@ -513,8 +650,14 @@ export default function App() {
           </button>
         </nav>
 
-        {tab === 'search' ? <SearchTab /> : <DiscoverTab />}
+        {tab === 'search' ? (
+          <SearchTab onOpenDetails={setDetailsOffer} />
+        ) : (
+          <DiscoverTab onOpenDetails={setDetailsOffer} />
+        )}
       </div>
+
+      {detailsOffer && <GameDetailsModal offer={detailsOffer} onClose={() => setDetailsOffer(null)} />}
     </div>
   )
 }

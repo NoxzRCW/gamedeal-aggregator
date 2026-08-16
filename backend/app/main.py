@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .cache import cache_get, cache_set
 from .config import settings
+from .providers import details as details_provider
 from .providers import instant_gaming, itad
 from .schemas import SearchResponse
 
@@ -69,6 +70,18 @@ async def discover(
     response = SearchResponse(query="", offers=offers, errors=errors)
     await cache_set(cache_key, response.model_dump(), ttl=600)
     return response
+
+
+@app.get("/api/details")
+async def details(title: str = Query(min_length=2)):
+    cache_key = f"details:{title.lower()}"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    data = await details_provider.get_details(title)
+    await cache_set(cache_key, data, ttl=86400)
+    return data
 
 
 @app.get("/api/search", response_model=SearchResponse)

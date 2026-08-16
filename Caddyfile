@@ -1,0 +1,30 @@
+# Source lisible du reverse proxy — Caddy tourne réellement à partir de caddy.json
+# (généré depuis ce fichier + ajout manuel de "default_sni", non exprimable en
+# syntaxe Caddyfile). Après modif de ce fichier, régénérer avec :
+#   caddy adapt --config Caddyfile --adapter caddyfile > caddy.json
+# puis réinjecter tls_connection_policies: [{"default_sni": "192.168.11.233"}]
+# sur le serveur srv0 (nécessaire car les clients TLS n'envoient pas de SNI
+# pour une IP littérale, ce qui fait échouer le handshake sans ce réglage).
+{
+	auto_https disable_redirects
+}
+
+http://192.168.11.233 {
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+	handle {
+		reverse_proxy frontend:4173
+	}
+}
+
+https://192.168.11.233 {
+	tls internal
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+	handle {
+		reverse_proxy frontend:4173
+	}
+}

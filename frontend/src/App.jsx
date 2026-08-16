@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+// chaîne vide = même origine que la page (utilisé derrière le reverse proxy Caddy,
+// pour que /api/... passe par le même protocole http/https que la page servie)
+const API_BASE = import.meta.env.VITE_API_BASE !== undefined ? import.meta.env.VITE_API_BASE : 'http://localhost:8000'
 
 const SOURCE_META = {
   'IsThereAnyDeal': { short: 'ITAD', color: '#6c5ce7' },

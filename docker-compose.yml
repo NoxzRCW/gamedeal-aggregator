@@ -19,9 +19,28 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE: http://192.168.11.233:8100
+        VITE_API_BASE: ""
     restart: unless-stopped
     ports:
       - "4273:4173"
     depends_on:
       - backend
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    command: caddy run --config /etc/caddy/caddy.json
+    ports:
+      - "8090:80"
+      - "8443:443"
+    volumes:
+      - ./caddy.json:/etc/caddy/caddy.json
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -53,7 +53,12 @@ async def suggest(q: str = Query(min_length=1)):
 
 @app.get("/api/platforms")
 async def platforms():
-    return instant_gaming.PLATFORMS
+    return instant_gaming.PLATFORM_GROUPS
+
+
+@app.get("/api/genres")
+async def genres():
+    return instant_gaming.GENRES
 
 
 @app.get("/api/discover", response_model=SearchResponse)
@@ -62,9 +67,10 @@ async def discover(
     max_price: float | None = None,
     min_discount: int = 0,
     platform: str | None = None,
+    genre: str | None = None,
     sort_by: str = "discount",
 ):
-    cache_key = f"discover:{min_price}:{max_price}:{min_discount}:{platform}:{sort_by}"
+    cache_key = f"discover:{min_price}:{max_price}:{min_discount}:{platform}:{genre}:{sort_by}"
     cached = await cache_get(cache_key)
     if cached:
         return cached
@@ -75,6 +81,7 @@ async def discover(
             max_price=max_price,
             min_discount=min_discount,
             platform=platform,
+            genre=genre,
             sort_by=sort_by,
         )
         errors = []

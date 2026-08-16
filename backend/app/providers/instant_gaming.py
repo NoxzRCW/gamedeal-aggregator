@@ -15,18 +15,39 @@ HEADERS = {
     "Origin": "https://www.instant-gaming.com",
 }
 
-PLATFORMS = [
-    "Steam",
-    "Xbox Series X|S",
-    "Xbox One",
-    "Switch",
-    "PlayStation Store",
-    "EA App",
-    "Ubisoft Connect",
-    "Epic Games",
-    "GOG.com",
-    "Battle.net",
+PLATFORM_GROUPS = {
+    "PC": ["Steam", "EA App", "Ubisoft Connect", "Epic Games", "GOG.com", "Battle.net", "Microsoft Store"],
+    "Consoles": ["Xbox Series X|S", "Xbox One", "PlayStation Store", "Switch"],
+}
+
+# id de catégorie Algolia (cat_ids) extraits des pages /discover/genres/ du site,
+# aucune API publique ne les documente
+GENRES = [
+    {"slug": "action", "label": "Action", "cat_id": 1},
+    {"slug": "adventure", "label": "Aventure", "cat_id": 4},
+    {"slug": "rpg", "label": "RPG", "cat_id": 11},
+    {"slug": "strategy", "label": "Stratégie", "cat_id": 17},
+    {"slug": "simulation", "label": "Simulation", "cat_id": 15},
+    {"slug": "sports", "label": "Sport", "cat_id": 16},
+    {"slug": "racing", "label": "Course", "cat_id": 8},
+    {"slug": "fighting", "label": "Combat", "cat_id": 7},
+    {"slug": "fps", "label": "FPS", "cat_id": 9},
+    {"slug": "platformer", "label": "Plateforme", "cat_id": 13},
+    {"slug": "arcade", "label": "Arcade", "cat_id": 2},
+    {"slug": "management", "label": "Gestion", "cat_id": 10},
+    {"slug": "mmo", "label": "MMO", "cat_id": 12},
+    {"slug": "multiplayer", "label": "Multijoueur", "cat_id": 23},
+    {"slug": "online-co-op", "label": "Coop en ligne", "cat_id": 53},
+    {"slug": "local-co-op", "label": "Coop en local", "cat_id": 54},
+    {"slug": "online-pvp", "label": "PvP en ligne", "cat_id": 51},
+    {"slug": "single-player", "label": "Solo", "cat_id": 47},
+    {"slug": "indies", "label": "Indépendant", "cat_id": 32},
+    {"slug": "free-to-play", "label": "Free-to-play", "cat_id": 35},
+    {"slug": "early-access", "label": "Accès anticipé", "cat_id": 37},
+    {"slug": "vr", "label": "Réalité virtuelle", "cat_id": 31},
+    {"slug": "wargame", "label": "Wargame", "cat_id": 18},
 ]
+GENRE_BY_SLUG = {g["slug"]: g["cat_id"] for g in GENRES}
 
 
 def _cover_url(hit: dict) -> str | None:
@@ -73,6 +94,7 @@ async def discover(
     max_price: float | None = None,
     min_discount: int = 0,
     platform: str | None = None,
+    genre: str | None = None,
     sort_by: str = "discount",
     limit: int = 24,
 ) -> list[Offer]:
@@ -85,6 +107,8 @@ async def discover(
         filters.append(f"discount>={min_discount}")
     if platform:
         filters.append(f'platform:"{platform}"')
+    if genre and genre in GENRE_BY_SLUG:
+        filters.append(f"cat_ids:{GENRE_BY_SLUG[genre]}")
 
     params = f"query=&hitsPerPage=60&filters={' AND '.join(filters)}"
 

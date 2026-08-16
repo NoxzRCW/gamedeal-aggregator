@@ -536,8 +536,10 @@ const DISCOVER_SORT_OPTIONS = [
 ]
 
 function DiscoverTab({ onOpenDetails }) {
-  const [platforms, setPlatforms] = useState([])
+  const [platformGroups, setPlatformGroups] = useState({})
   const [platform, setPlatform] = useState('')
+  const [genres, setGenres] = useState([])
+  const [genre, setGenre] = useState('')
   const [maxPrice, setMaxPrice] = useState(20)
   const [minDiscount, setMinDiscount] = useState(50)
   const [sortBy, setSortBy] = useState('discount')
@@ -550,7 +552,12 @@ function DiscoverTab({ onOpenDetails }) {
   useEffect(() => {
     fetch(`${API_BASE}/api/platforms`)
       .then((res) => res.json())
-      .then((data) => setPlatforms(Array.isArray(data) ? data : []))
+      .then((data) => setPlatformGroups(data && typeof data === 'object' ? data : {}))
+      .catch(() => {})
+
+    fetch(`${API_BASE}/api/genres`)
+      .then((res) => res.json())
+      .then((data) => setGenres(Array.isArray(data) ? data : []))
       .catch(() => {})
   }, [])
 
@@ -563,6 +570,7 @@ function DiscoverTab({ onOpenDetails }) {
       if (maxPrice !== '') params.set('max_price', maxPrice)
       if (minDiscount > 0) params.set('min_discount', minDiscount)
       if (platform) params.set('platform', platform)
+      if (genre) params.set('genre', genre)
       params.set('sort_by', sortBy)
 
       const res = await fetch(`${API_BASE}/api/discover?${params.toString()}`)
@@ -584,11 +592,25 @@ function DiscoverTab({ onOpenDetails }) {
 
       <div className="filters discover-filters">
         <div className="filter-group">
+          <label htmlFor="d-genre">Thème</label>
+          <select id="d-genre" value={genre} onChange={(e) => setGenre(e.target.value)}>
+            <option value="">Tous</option>
+            {genres.map((g) => (
+              <option key={g.slug} value={g.slug}>{g.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="filter-group">
           <label htmlFor="d-platform">Plateforme</label>
           <select id="d-platform" value={platform} onChange={(e) => setPlatform(e.target.value)}>
             <option value="">Toutes</option>
-            {platforms.map((p) => (
-              <option key={p} value={p}>{p}</option>
+            {Object.entries(platformGroups).map(([group, list]) => (
+              <optgroup key={group} label={group}>
+                {list.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

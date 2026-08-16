@@ -19,7 +19,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE: http://localhost:8100
+        VITE_API_BASE: http://192.168.11.233:8100
     restart: unless-stopped
     ports:
       - "4273:4173"

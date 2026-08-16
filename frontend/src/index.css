@@ -653,6 +653,59 @@ h1 {
 
 .card:hover .card-cover-hint { opacity: 1; }
 
+.share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  border: none;
+  cursor: pointer;
+  color: white;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.card-share-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(10, 11, 15, 0.6);
+  backdrop-filter: blur(4px);
+  font-size: 0.65rem;
+  white-space: nowrap;
+  padding: 0 0.4rem;
+  min-width: 30px;
+}
+
+.card-share-btn:hover {
+  background: rgba(108, 92, 231, 0.7);
+  transform: scale(1.08);
+}
+
+.modal-offer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.modal-share-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.modal-share-btn:hover {
+  border-color: var(--accent);
+  background: rgba(108, 92, 231, 0.15);
+}
+
 .buy-link {
   display: block;
   margin-top: 0.7rem;

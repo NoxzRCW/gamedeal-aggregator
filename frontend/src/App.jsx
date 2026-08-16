@@ -11,6 +11,50 @@ function sourceColor(source) {
   return SOURCE_META[source]?.color || '#4f8cff'
 }
 
+async function shareOffer(offer, onFeedback) {
+  const price = offer.price != null ? `${offer.price} ${offer.currency}` : ''
+  const text = `${offer.name}${price ? ` — ${price} sur ${offer.source}` : ''}`
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: offer.name, text, url: offer.url })
+    } catch {
+      // partage annulé par l'utilisateur, rien à faire
+    }
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(offer.url)
+    onFeedback?.('Lien copié !')
+  } catch {
+    onFeedback?.('Impossible de copier le lien')
+  }
+}
+
+function ShareButton({ offer, className = '' }) {
+  const [feedback, setFeedback] = useState(null)
+
+  function handleClick(e) {
+    e.stopPropagation()
+    shareOffer(offer, (msg) => {
+      setFeedback(msg)
+      setTimeout(() => setFeedback(null), 1800)
+    })
+  }
+
+  return (
+    <button type="button" className={`share-btn ${className}`} onClick={handleClick} aria-label="Partager">
+      {feedback || (
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none">
+          <circle cx="18" cy="5" r="2.8" stroke="currentColor" strokeWidth="1.6" />
+          <circle cx="6" cy="12" r="2.8" stroke="currentColor" strokeWidth="1.6" />
+          <circle cx="18" cy="19" r="2.8" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M8.5 10.5L15.5 6.5M8.5 13.5L15.5 17.5" stroke="currentColor" strokeWidth="1.6" />
+        </svg>
+      )}
+    </button>
+  )
+}
+
 function OfferCard({ offer, index, onOpenDetails }) {
   const hasDiscount = !!offer.discount_percent
   return (
@@ -25,6 +69,7 @@ function OfferCard({ offer, index, onOpenDetails }) {
         <div className="card-cover">
           <img src={offer.image} alt="" loading="lazy" />
           <span className="card-cover-hint">Voir les infos</span>
+          <ShareButton offer={offer} className="card-share-btn" />
         </div>
       )}
       <div className="card-body">
@@ -173,9 +218,12 @@ function GameDetailsModal({ offer, onClose }) {
               )}
               <span className="price big">{offer.price != null ? `${offer.price} ${offer.currency}` : '—'}</span>
             </div>
-            <a className="search-btn" href={offer.url} target="_blank" rel="noreferrer">
-              Acheter sur {offer.source} ↗
-            </a>
+            <div className="modal-offer-actions">
+              <ShareButton offer={offer} className="modal-share-btn" />
+              <a className="search-btn" href={offer.url} target="_blank" rel="noreferrer">
+                Acheter sur {offer.source} ↗
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -212,6 +260,7 @@ function SearchTab({ onOpenDetails }) {
   const [minDiscount, setMinDiscount] = useState(0)
   const [maxPrice, setMaxPrice] = useState('')
   const [includeDlc, setIncludeDlc] = useState(false)
+  const [platformFilter, setPlatformFilter] = useState('')
 
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -278,6 +327,7 @@ function SearchTab({ onOpenDetails }) {
     setLoading(true)
     setErrors([])
     setHasSearched(true)
+    setPlatformFilter('')
     try {
       const res = await fetch(
         `${API_BASE}/api/search?q=${encodeURIComponent(value)}&offset=0&page_size=${PAGE_SIZE}&include_dlc=${dlc}`
@@ -357,6 +407,11 @@ function SearchTab({ onOpenDetails }) {
     }
   }
 
+  const availablePlatforms = useMemo(() => {
+    const set = new Set(offers.map((o) => o.platform).filter(Boolean))
+    return [...set].sort()
+  }, [offers])
+
   const filteredOffers = useMemo(() => {
     let result = offers.filter((o) => activeSources.has(o.source))
     if (minDiscount > 0) {
@@ -364,6 +419,9 @@ function SearchTab({ onOpenDetails }) {
     }
     if (maxPrice !== '' && !Number.isNaN(Number(maxPrice))) {
       result = result.filter((o) => o.price != null && o.price <= Number(maxPrice))
+    }
+    if (platformFilter) {
+      result = result.filter((o) => o.platform === platformFilter)
     }
     const sorted = [...result]
     switch (sortBy) {
@@ -384,7 +442,7 @@ function SearchTab({ onOpenDetails }) {
         })
     }
     return sorted
-  }, [offers, activeSources, sortBy, minDiscount, maxPrice])
+  }, [offers, activeSources, sortBy, minDiscount, maxPrice, platformFilter])
 
   const bestPrice = filteredOffers.reduce(
     (min, o) => (o.price != null && (min == null || o.price < min) ? o.price : min),
@@ -501,6 +559,18 @@ function SearchTab({ onOpenDetails }) {
               {includeDlc ? '✓ DLC inclus' : 'Sans DLC'}
             </button>
           </div>
+
+          {availablePlatforms.length > 1 && (
+            <div className="filter-group">
+              <label htmlFor="s-platform">Plateforme</label>
+              <select id="s-platform" value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)}>
+                <option value="">Toutes</option>
+                {availablePlatforms.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
 

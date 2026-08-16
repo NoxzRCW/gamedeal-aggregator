@@ -289,31 +289,39 @@ h1 {
 .card:hover .card-glow { opacity: 0.15; }
 
 .ribbon {
-  position: absolute;
-  top: 0.7rem;
-  right: -0.5rem;
+  flex-shrink: 0;
   background: linear-gradient(120deg, #ff6b6b, #ff9f43);
   color: white;
   font-weight: 800;
-  font-size: 0.72rem;
-  padding: 0.25rem 0.7rem;
-  border-radius: 999px 0 0 999px;
-  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.35);
+  white-space: nowrap;
 }
 
 .card-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
 .card-source {
+  flex-shrink: 0;
   font-size: 0.7rem;
   text-transform: uppercase;
   color: var(--accent);
   font-weight: 800;
   letter-spacing: 0.03em;
+}
+
+.card-top-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
 .card-platform {
@@ -322,6 +330,10 @@ h1 {
   background: rgba(255,255,255,0.06);
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .card-name {

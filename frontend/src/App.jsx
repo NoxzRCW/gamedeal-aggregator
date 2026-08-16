@@ -21,10 +21,12 @@ function OfferCard({ offer, index }) {
       rel="noreferrer"
       style={{ '--accent': sourceColor(offer.source), animationDelay: `${index * 45}ms` }}
     >
-      {hasDiscount && <div className="ribbon">-{offer.discount_percent}%</div>}
       <div className="card-top">
         <span className="card-source">{offer.source}</span>
-        {offer.platform && <span className="card-platform">{offer.platform}</span>}
+        <div className="card-top-right">
+          {offer.platform && <span className="card-platform">{offer.platform}</span>}
+          {hasDiscount && <span className="ribbon">-{offer.discount_percent}%</span>}
+        </div>
       </div>
       <div className="card-name">{offer.name}</div>
       <div className="card-price-row">

@@ -194,13 +194,18 @@ const SORT_OPTIONS = [
   { value: 'name-asc', label: 'Nom (A-Z)' },
 ]
 
+const PAGE_SIZE = 24
+
 function SearchTab({ onOpenDetails }) {
   const [query, setQuery] = useState('')
   const [offers, setOffers] = useState([])
   const [bundleDeals, setBundleDeals] = useState([])
   const [errors, setErrors] = useState([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [total, setTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
 
   const [activeSources, setActiveSources] = useState(new Set(Object.keys(SOURCE_META)))
   const [sortBy, setSortBy] = useState('price-asc')
@@ -272,15 +277,35 @@ function SearchTab({ onOpenDetails }) {
     setErrors([])
     setHasSearched(true)
     try {
-      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(value)}`)
+      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(value)}&offset=0&page_size=${PAGE_SIZE}`)
       const data = await res.json()
       setOffers(data.offers || [])
       setBundleDeals(data.bundle_deals || [])
       setErrors(data.errors || [])
+      setTotal(data.total || 0)
+      setHasMore(!!data.has_more)
     } catch (err) {
       setErrors([String(err)])
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadMore() {
+    const value = lastSubmittedRef.current
+    if (!value) return
+    setLoadingMore(true)
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/search?q=${encodeURIComponent(value)}&offset=${offers.length}&page_size=${PAGE_SIZE}`
+      )
+      const data = await res.json()
+      setOffers((prev) => [...prev, ...(data.offers || [])])
+      setHasMore(!!data.has_more)
+    } catch (err) {
+      setErrors((prev) => [...prev, String(err)])
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -500,7 +525,8 @@ function SearchTab({ onOpenDetails }) {
 
       {hasSearched && !loading && (
         <div className="result-meta">
-          {filteredOffers.length} résultat{filteredOffers.length !== 1 ? 's' : ''}
+          {filteredOffers.length} résultat{filteredOffers.length !== 1 ? 's' : ''} chargé{filteredOffers.length !== 1 ? 's' : ''}
+          {total > offers.length && <span className="total-hint"> (sur {total} au total)</span>}
           {bestPrice != null && (
             <span className="best-price-badge">meilleur prix : {bestPrice.toFixed(2)} €</span>
           )}
@@ -513,6 +539,12 @@ function SearchTab({ onOpenDetails }) {
           <OfferCard key={`${offer.source}-${offer.name}-${i}`} offer={offer} index={i} onOpenDetails={onOpenDetails} />
         ))}
       </div>
+
+      {!loading && hasMore && (
+        <button type="button" className="load-more-btn" onClick={loadMore} disabled={loadingMore}>
+          {loadingMore ? <span className="spinner" /> : `Charger plus (${offers.length} / ${total})`}
+        </button>
+      )}
 
       {!loading && hasSearched && filteredOffers.length === 0 && (
         <div className="empty-state">
@@ -547,7 +579,10 @@ function DiscoverTab({ onOpenDetails }) {
   const [offers, setOffers] = useState([])
   const [errors, setErrors] = useState([])
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [total, setTotal] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
 
   useEffect(() => {
     fetch(`${API_BASE}/api/platforms`)
@@ -561,26 +596,47 @@ function DiscoverTab({ onOpenDetails }) {
       .catch(() => {})
   }, [])
 
+  function buildParams(offset) {
+    const params = new URLSearchParams()
+    if (maxPrice !== '') params.set('max_price', maxPrice)
+    if (minDiscount > 0) params.set('min_discount', minDiscount)
+    if (platform) params.set('platform', platform)
+    if (genre) params.set('genre', genre)
+    params.set('sort_by', sortBy)
+    params.set('offset', offset)
+    params.set('page_size', PAGE_SIZE)
+    return params
+  }
+
   async function runDiscover() {
     setLoading(true)
     setErrors([])
     setHasSearched(true)
     try {
-      const params = new URLSearchParams()
-      if (maxPrice !== '') params.set('max_price', maxPrice)
-      if (minDiscount > 0) params.set('min_discount', minDiscount)
-      if (platform) params.set('platform', platform)
-      if (genre) params.set('genre', genre)
-      params.set('sort_by', sortBy)
-
-      const res = await fetch(`${API_BASE}/api/discover?${params.toString()}`)
+      const res = await fetch(`${API_BASE}/api/discover?${buildParams(0).toString()}`)
       const data = await res.json()
       setOffers(data.offers || [])
       setErrors(data.errors || [])
+      setTotal(data.total || 0)
+      setHasMore(!!data.has_more)
     } catch (err) {
       setErrors([String(err)])
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadMore() {
+    setLoadingMore(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/discover?${buildParams(offers.length).toString()}`)
+      const data = await res.json()
+      setOffers((prev) => [...prev, ...(data.offers || [])])
+      setHasMore(!!data.has_more)
+    } catch (err) {
+      setErrors((prev) => [...prev, String(err)])
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -663,7 +719,10 @@ function DiscoverTab({ onOpenDetails }) {
       )}
 
       {hasSearched && !loading && (
-        <div className="result-meta">{offers.length} suggestion{offers.length !== 1 ? 's' : ''}</div>
+        <div className="result-meta">
+          {offers.length} jeu{offers.length !== 1 ? 'x' : ''} chargé{offers.length !== 1 ? 's' : ''}
+          {total > offers.length && <span className="total-hint"> (sur {total} au total)</span>}
+        </div>
       )}
 
       <div className="grid">
@@ -672,6 +731,12 @@ function DiscoverTab({ onOpenDetails }) {
           <OfferCard key={`${offer.source}-${offer.name}-${i}`} offer={offer} index={i} onOpenDetails={onOpenDetails} />
         ))}
       </div>
+
+      {!loading && hasMore && (
+        <button type="button" className="load-more-btn" onClick={loadMore} disabled={loadingMore}>
+          {loadingMore ? <span className="spinner" /> : `Charger plus (${offers.length} / ${total})`}
+        </button>
+      )}
 
       {!loading && hasSearched && offers.length === 0 && (
         <div className="empty-state">

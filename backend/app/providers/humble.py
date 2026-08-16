@@ -101,7 +101,7 @@ async def get_bundle_detail(product_url_path: str) -> dict | None:
         return None
 
 
-async def build_deal_index(max_bundles: int = 20) -> dict:
+async def build_deal_index(max_bundles: int = 60) -> dict:
     """Construit un index {titre en minuscule: [deals]} en croisant tous les bundles jeux actifs."""
     import asyncio
 

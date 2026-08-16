@@ -395,6 +395,40 @@ h1 {
   font-size: 0.75rem;
 }
 
+.total-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.load-more-btn {
+  display: block;
+  width: 100%;
+  margin: 1.2rem 0;
+  padding: 0.85rem;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+.load-more-btn:hover {
+  border-color: var(--accent);
+}
+
+.load-more-btn:active {
+  transform: scale(0.98);
+}
+
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

@@ -60,7 +60,7 @@ async def search(query: str) -> list[Offer]:
     async with httpx.AsyncClient(timeout=10) as client:
         lookup = await client.get(
             f"{BASE_URL}/games/search/v1",
-            params={"key": settings.itad_api_key, "title": query, "results": 5},
+            params={"key": settings.itad_api_key, "title": query, "results": 100},
         )
         lookup.raise_for_status()
         games = lookup.json()

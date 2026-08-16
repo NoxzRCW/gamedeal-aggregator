@@ -75,18 +75,25 @@ def _hit_to_offer(hit: dict) -> Offer:
     )
 
 
-async def search(query: str) -> list[Offer]:
+# Algolia plafonne hitsPerPage à 1000 par requête ; au-delà, il faudrait paginer
+# côté Algolia lui-même. Un seul appel à 1000 couvre la quasi-totalité des
+# recherches/filtres réels ; le vrai total (nbHits) est toujours renvoyé pour
+# rester honnête quand ce plafond est atteint.
+ALGOLIA_MAX_HITS = 1000
+
+
+async def search(query: str) -> tuple[list[Offer], int]:
     query = sanitize_title(query)
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(
             ALGOLIA_URL,
             headers=HEADERS,
-            json={"params": f"query={query}&hitsPerPage=5"},
+            json={"params": f"query={query}&hitsPerPage=100"},
         )
         resp.raise_for_status()
-        hits = resp.json().get("hits", [])
+        data = resp.json()
 
-    return [_hit_to_offer(h) for h in hits]
+    return [_hit_to_offer(h) for h in data.get("hits", [])], data.get("nbHits", 0)
 
 
 async def discover(
@@ -96,8 +103,7 @@ async def discover(
     platform: str | None = None,
     genre: str | None = None,
     sort_by: str = "discount",
-    limit: int = 24,
-) -> list[Offer]:
+) -> tuple[list[Offer], int]:
     filters = ["is_dlc=0"]
     if min_price is not None:
         filters.append(f"price>={min_price}")
@@ -114,14 +120,14 @@ async def discover(
     if genre and genre in GENRE_BY_SLUG:
         filters.append(f"cat_ids:{GENRE_BY_SLUG[genre]}")
 
-    params = f"query=&hitsPerPage=60&filters={' AND '.join(filters)}"
+    params = f"query=&hitsPerPage={ALGOLIA_MAX_HITS}&filters={' AND '.join(filters)}"
 
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(ALGOLIA_URL, headers=HEADERS, json={"params": params})
         resp.raise_for_status()
-        hits = resp.json().get("hits", [])
+        data = resp.json()
 
-    offers = [_hit_to_offer(h) for h in hits]
+    offers = [_hit_to_offer(h) for h in data.get("hits", [])]
 
     if sort_by == "price_asc":
         offers.sort(key=lambda o: (o.price is None, o.price))
@@ -130,4 +136,4 @@ async def discover(
     else:
         offers.sort(key=lambda o: -(o.discount_percent or 0))
 
-    return offers[:limit]
+    return offers, data.get("nbHits", 0)

@@ -47,3 +47,6 @@ class SearchResponse(BaseModel):
     offers: list[Offer]
     bundle_deals: list[BundleDeal] = []
     errors: list[str] = []
+    total: int = 0
+    loaded_total: int = 0
+    has_more: bool = False

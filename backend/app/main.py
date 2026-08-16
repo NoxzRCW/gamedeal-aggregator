@@ -69,29 +69,43 @@ async def discover(
     platform: str | None = None,
     genre: str | None = None,
     sort_by: str = "discount",
+    offset: int = 0,
+    page_size: int = 24,
 ):
+    # le résultat complet (jusqu'à 1000, trié) est mis en cache une fois pour tous
+    # les offsets d'une même combinaison de filtres, évitant de refaire l'appel
+    # Algolia à chaque clic sur "Charger plus"
     cache_key = f"discover:{min_price}:{max_price}:{min_discount}:{platform}:{genre}:{sort_by}"
     cached = await cache_get(cache_key)
-    if cached:
-        return cached
+    if cached is not None:
+        all_offers, total, errors = cached["offers"], cached["total"], cached["errors"]
+    else:
+        try:
+            offers, total = await instant_gaming.discover(
+                min_price=min_price,
+                max_price=max_price,
+                min_discount=min_discount,
+                platform=platform,
+                genre=genre,
+                sort_by=sort_by,
+            )
+            errors = []
+        except Exception as exc:
+            offers, total = [], 0
+            errors = [f"instant_gaming: {exc}"]
 
-    try:
-        offers = await instant_gaming.discover(
-            min_price=min_price,
-            max_price=max_price,
-            min_discount=min_discount,
-            platform=platform,
-            genre=genre,
-            sort_by=sort_by,
-        )
-        errors = []
-    except Exception as exc:
-        offers = []
-        errors = [f"instant_gaming: {exc}"]
+        all_offers = [o.model_dump() for o in offers]
+        await cache_set(cache_key, {"offers": all_offers, "total": total, "errors": errors}, ttl=600)
 
-    response = SearchResponse(query="", offers=offers, errors=errors)
-    await cache_set(cache_key, response.model_dump(), ttl=600)
-    return response
+    page = all_offers[offset : offset + page_size]
+    return SearchResponse(
+        query="",
+        offers=page,
+        errors=errors,
+        total=total,
+        loaded_total=len(all_offers),
+        has_more=offset + page_size < len(all_offers),
+    )
 
 
 @app.get("/api/bundles", response_model=list[Bundle])
@@ -122,11 +136,24 @@ async def details(title: str = Query(min_length=2)):
 
 
 @app.get("/api/search", response_model=SearchResponse)
-async def search(q: str = Query(min_length=2)):
+async def search(q: str = Query(min_length=2), offset: int = 0, page_size: int = 24):
     cache_key = f"search:{q.lower()}"
     cached = await cache_get(cache_key)
-    if cached:
-        return cached
+    if cached is not None:
+        all_offers = cached["offers"]
+        bundle_deals_cached = cached["bundle_deals"]
+        errors = cached["errors"]
+        total = cached["total"]
+        page = all_offers[offset : offset + page_size]
+        return SearchResponse(
+            query=q,
+            offers=page,
+            bundle_deals=bundle_deals_cached,
+            errors=errors,
+            total=total,
+            loaded_total=len(all_offers),
+            has_more=offset + page_size < len(all_offers),
+        )
 
     results = await asyncio.gather(
         itad.search(q), instant_gaming.search(q), get_humble_index(), return_exceptions=True
@@ -135,13 +162,18 @@ async def search(q: str = Query(min_length=2)):
 
     offers = []
     errors = []
+    ig_total = 0
     for source_name, result in [("itad", itad_result), ("instant_gaming", ig_result)]:
         if isinstance(result, Exception):
             errors.append(f"{source_name}: {result}")
+        elif source_name == "instant_gaming":
+            ig_offers, ig_total = result
+            offers.extend(ig_offers)
         else:
             offers.extend(result)
 
     offers.sort(key=lambda o: (o.price is None, o.price))
+    total = len(offers) + max(ig_total - sum(1 for o in offers if o.source == "Instant Gaming"), 0)
 
     bundle_deals: list[BundleDeal] = []
     if isinstance(humble_index, dict) and humble_index:
@@ -199,6 +231,20 @@ async def search(q: str = Query(min_length=2)):
                 )
         bundle_deals.sort(key=lambda d: (d.deal_type != "cheaper", d.entry_price))
 
-    response = SearchResponse(query=q, offers=offers, bundle_deals=bundle_deals, errors=errors)
-    await cache_set(cache_key, response.model_dump())
-    return response
+    all_offers = [o.model_dump() for o in offers]
+    bundle_deals_dump = [b.model_dump() for b in bundle_deals]
+    await cache_set(
+        cache_key,
+        {"offers": all_offers, "bundle_deals": bundle_deals_dump, "errors": errors, "total": total},
+    )
+
+    page = all_offers[offset : offset + page_size]
+    return SearchResponse(
+        query=q,
+        offers=page,
+        bundle_deals=bundle_deals_dump,
+        errors=errors,
+        total=total,
+        loaded_total=len(all_offers),
+        has_more=offset + page_size < len(all_offers),
+    )

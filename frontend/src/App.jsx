@@ -93,7 +93,7 @@ function OfferCard({ offer, index, onOpenDetails }) {
   return (
     <div
       className="card"
-      style={{ '--accent': sourceColor(offer.source), animationDelay: `${index * 45}ms` }}
+      style={{ '--accent': sourceColor(offer.source), animationDelay: `${Math.min(index, 12) * 35}ms` }}
       onClick={() => onOpenDetails(offer)}
       role="button"
       tabIndex={0}
@@ -101,36 +101,39 @@ function OfferCard({ offer, index, onOpenDetails }) {
       {offer.image && (
         <div className="card-cover">
           <img src={offer.image} alt="" loading="lazy" />
-          <span className="card-cover-hint">Voir les infos</span>
-          <ShareButton offer={offer} className="card-share-btn" />
+          {hasDiscount && <span className="ribbon">-{offer.discount_percent}%</span>}
         </div>
       )}
+
       <div className="card-body">
         <div className="card-top">
-          <span className="card-source">{offer.source}</span>
-          <div className="card-top-right">
-            {offer.platform && <span className="card-platform">{offer.platform}</span>}
-            {hasDiscount && <span className="ribbon">-{offer.discount_percent}%</span>}
+          <span className="card-source" style={{ color: sourceColor(offer.source) }}>{offer.source}</span>
+          {offer.platform && <span className="card-platform">{offer.platform}</span>}
+        </div>
+
+        <div className="card-name">{offer.name}</div>
+
+        <div className="card-bottom">
+          <div className="card-price-row">
+            {offer.base_price && offer.base_price !== offer.price && (
+              <span className="base-price">{offer.base_price}€</span>
+            )}
+            <span className="price">{offer.price != null ? `${offer.price} ${offer.currency}` : '—'}</span>
+          </div>
+          <div className="card-actions">
+            <ShareButton offer={offer} className="card-share-btn" />
+            <a
+              className="buy-link"
+              href={offer.url}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Voir ↗
+            </a>
           </div>
         </div>
-        <div className="card-name">{offer.name}</div>
-        <div className="card-price-row">
-          {offer.base_price && offer.base_price !== offer.price && (
-            <span className="base-price">{offer.base_price} {offer.currency}</span>
-          )}
-          <span className="price">{offer.price != null ? `${offer.price} ${offer.currency}` : '—'}</span>
-        </div>
-        <a
-          className="buy-link"
-          href={offer.url}
-          target="_blank"
-          rel="noreferrer"
-          onClick={(e) => e.stopPropagation()}
-        >
-          Acheter sur {offer.source} ↗
-        </a>
       </div>
-      <div className="card-glow" />
     </div>
   )
 }
@@ -964,6 +967,12 @@ function BundlesTab() {
   )
 }
 
+const NAV_ITEMS = [
+  { key: 'search', label: 'Rechercher', icon: '🔍' },
+  { key: 'discover', label: 'Idées', icon: '✨' },
+  { key: 'bundles', label: 'Bundles', icon: '📦' },
+]
+
 export default function App() {
   const [tab, setTab] = useState('search')
   const [detailsOffer, setDetailsOffer] = useState(null)
@@ -973,42 +982,35 @@ export default function App() {
       <div className="orb orb-1" />
       <div className="orb orb-2" />
 
+      <header className="top-bar">
+        <div className="top-bar-brand">
+          <span className="brand-mark">GD</span>
+          <div>
+            <div className="brand-name"><span className="brand-gradient">GameDeal</span> Aggregator</div>
+            <div className="brand-sub">ITAD · Instant Gaming · Humble Bundle</div>
+          </div>
+        </div>
+      </header>
+
       <div className="container">
-        <header className="hero">
-          <h1>
-            <span className="brand-gradient">GameDeal</span> Aggregator
-          </h1>
-          <p className="subtitle">ITAD + Instant Gaming + Humble Bundle, comparés en un coup d'œil</p>
-        </header>
-
-        <nav className="tabs">
-          <button
-            type="button"
-            className={`tab ${tab === 'search' ? 'active' : ''}`}
-            onClick={() => setTab('search')}
-          >
-            🔍 Rechercher
-          </button>
-          <button
-            type="button"
-            className={`tab ${tab === 'discover' ? 'active' : ''}`}
-            onClick={() => setTab('discover')}
-          >
-            ✨ Idées
-          </button>
-          <button
-            type="button"
-            className={`tab ${tab === 'bundles' ? 'active' : ''}`}
-            onClick={() => setTab('bundles')}
-          >
-            📦 Bundles
-          </button>
-        </nav>
-
         {tab === 'search' && <SearchTab onOpenDetails={setDetailsOffer} />}
         {tab === 'discover' && <DiscoverTab onOpenDetails={setDetailsOffer} />}
         {tab === 'bundles' && <BundlesTab />}
       </div>
+
+      <nav className="bottom-nav">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            className={`bottom-nav-item ${tab === item.key ? 'active' : ''}`}
+            onClick={() => setTab(item.key)}
+          >
+            <span className="bottom-nav-icon">{item.icon}</span>
+            <span className="bottom-nav-label">{item.label}</span>
+          </button>
+        ))}
+      </nav>
 
       {detailsOffer && <GameDetailsModal offer={detailsOffer} onClose={() => setDetailsOffer(null)} />}
     </div>

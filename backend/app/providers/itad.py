@@ -2,6 +2,7 @@ import httpx
 
 from ..config import settings
 from ..schemas import Offer
+from ..text_utils import sanitize_title as _sanitize_title
 
 BASE_URL = "https://api.isthereanydeal.com"
 
@@ -9,6 +10,8 @@ BASE_URL = "https://api.isthereanydeal.com"
 async def suggest(query: str, limit: int = 8) -> list[dict]:
     if not settings.itad_api_key:
         return []
+
+    query = _sanitize_title(query)
 
     async with httpx.AsyncClient(timeout=6) as client:
         resp = await client.get(
@@ -51,6 +54,8 @@ async def suggest(query: str, limit: int = 8) -> list[dict]:
 async def search(query: str) -> list[Offer]:
     if not settings.itad_api_key:
         raise RuntimeError("ITAD_API_KEY manquant")
+
+    query = _sanitize_title(query)
 
     async with httpx.AsyncClient(timeout=10) as client:
         lookup = await client.get(

@@ -1,6 +1,7 @@
 import httpx
 
 from ..schemas import Offer
+from ..text_utils import sanitize_title
 
 ALGOLIA_APP_ID = "QKNHP8TC3Y"
 ALGOLIA_API_KEY = "93946b91c013211f842ddf1819ea880b"
@@ -54,6 +55,7 @@ def _hit_to_offer(hit: dict) -> Offer:
 
 
 async def search(query: str) -> list[Offer]:
+    query = sanitize_title(query)
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(
             ALGOLIA_URL,

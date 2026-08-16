@@ -1,6 +1,7 @@
 import httpx
 
 from ..config import settings
+from .itad import _sanitize_title
 
 ITAD_BASE = "https://api.isthereanydeal.com"
 STEAM_BASE = "https://store.steampowered.com/api/appdetails"
@@ -9,6 +10,8 @@ STEAM_BASE = "https://store.steampowered.com/api/appdetails"
 async def get_details(title: str) -> dict | None:
     if not settings.itad_api_key:
         return None
+
+    title = _sanitize_title(title)
 
     async with httpx.AsyncClient(timeout=8) as client:
         search_resp = await client.get(

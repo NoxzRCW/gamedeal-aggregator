@@ -213,6 +213,7 @@ function SearchTab({ onOpenDetails }) {
   const debounceRef = useRef(null)
   const suggestAbortRef = useRef(null)
   const inputWrapRef = useRef(null)
+  const lastSubmittedRef = useRef('')
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -220,6 +221,13 @@ function SearchTab({ onOpenDetails }) {
     const trimmed = query.trim()
     if (trimmed.length < 2) {
       setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    // évite de rouvrir le dropdown quand la recherche vient d'être lancée
+    // (sélection d'une suggestion ou clic sur "Chercher") pour ce même terme
+    if (trimmed === lastSubmittedRef.current) {
       setShowSuggestions(false)
       return
     }
@@ -257,7 +265,9 @@ function SearchTab({ onOpenDetails }) {
   async function runSearch(term) {
     const value = term.trim()
     if (value.length < 2) return
+    lastSubmittedRef.current = value
     setShowSuggestions(false)
+    setSuggestions([])
     setLoading(true)
     setErrors([])
     setHasSearched(true)

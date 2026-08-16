@@ -6,6 +6,41 @@ from ..schemas import Offer
 BASE_URL = "https://api.isthereanydeal.com"
 
 
+async def suggest(query: str, limit: int = 8) -> list[str]:
+    if not settings.itad_api_key:
+        return []
+
+    async with httpx.AsyncClient(timeout=6) as client:
+        resp = await client.get(
+            f"{BASE_URL}/games/search/v1",
+            params={"key": settings.itad_api_key, "title": query, "results": max(limit * 4, 30)},
+        )
+        resp.raise_for_status()
+        games = resp.json()
+
+    seen = set()
+    titles = []
+    for g in games:
+        title = g["title"]
+        if title.lower() not in seen:
+            seen.add(title.lower())
+            titles.append(title)
+
+    q = query.strip().lower()
+
+    def rank(title: str) -> tuple[int, int]:
+        low = title.lower()
+        if low.startswith(q):
+            return (0, len(title))
+        # match au début d'un mot ("the sims" pour "sims")
+        if any(word.startswith(q) for word in low.split()):
+            return (1, len(title))
+        return (2, len(title))
+
+    titles.sort(key=rank)
+    return titles[:limit]
+
+
 async def search(query: str) -> list[Offer]:
     if not settings.itad_api_key:
         raise RuntimeError("ITAD_API_KEY manquant")

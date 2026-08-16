@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
@@ -63,14 +63,62 @@ export default function App() {
   const [minDiscount, setMinDiscount] = useState(0)
   const [maxPrice, setMaxPrice] = useState('')
 
-  async function handleSearch(e) {
-    e.preventDefault()
-    if (query.trim().length < 2) return
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [activeSuggestion, setActiveSuggestion] = useState(-1)
+  const debounceRef = useRef(null)
+  const suggestAbortRef = useRef(null)
+  const inputWrapRef = useRef(null)
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    const trimmed = query.trim()
+    if (trimmed.length < 2) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      suggestAbortRef.current?.abort()
+      const controller = new AbortController()
+      suggestAbortRef.current = controller
+      try {
+        const res = await fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(trimmed)}`, {
+          signal: controller.signal,
+        })
+        const data = await res.json()
+        setSuggestions(Array.isArray(data) ? data : [])
+        setShowSuggestions(true)
+        setActiveSuggestion(-1)
+      } catch {
+        // requête annulée ou échouée silencieusement, pas critique pour l'UX
+      }
+    }, 250)
+
+    return () => clearTimeout(debounceRef.current)
+  }, [query])
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (inputWrapRef.current && !inputWrapRef.current.contains(e.target)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  async function runSearch(term) {
+    const value = term.trim()
+    if (value.length < 2) return
+    setShowSuggestions(false)
     setLoading(true)
     setErrors([])
     setHasSearched(true)
     try {
-      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`)
+      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(value)}`)
       const data = await res.json()
       setOffers(data.offers || [])
       setErrors(data.errors || [])
@@ -78,6 +126,32 @@ export default function App() {
       setErrors([String(err)])
     } finally {
       setLoading(false)
+    }
+  }
+
+  function handleSearch(e) {
+    e.preventDefault()
+    runSearch(query)
+  }
+
+  function selectSuggestion(title) {
+    setQuery(title)
+    runSearch(title)
+  }
+
+  function handleKeyDown(e) {
+    if (!showSuggestions || suggestions.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveSuggestion((i) => (i + 1) % suggestions.length)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveSuggestion((i) => (i - 1 + suggestions.length) % suggestions.length)
+    } else if (e.key === 'Enter' && activeSuggestion >= 0) {
+      e.preventDefault()
+      selectSuggestion(suggestions[activeSuggestion])
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
     }
   }
 
@@ -138,17 +212,34 @@ export default function App() {
         </header>
 
         <form onSubmit={handleSearch} className="search-form">
-          <div className="search-input-wrap">
+          <div className="search-input-wrap" ref={inputWrapRef}>
             <svg className="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none">
               <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
               <path d="M20 20L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
             <input
               type="text"
-              placeholder="Rechercher un jeu (ex: Elden Ring)"
+              placeholder="Rechercher un jeu (ex: Sims, Elden Ring...)"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              onKeyDown={handleKeyDown}
+              autoComplete="off"
             />
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className="suggestions">
+                {suggestions.map((title, i) => (
+                  <li
+                    key={title}
+                    className={i === activeSuggestion ? 'active' : ''}
+                    onMouseDown={() => selectSuggestion(title)}
+                    onMouseEnter={() => setActiveSuggestion(i)}
+                  >
+                    {title}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <button type="submit" disabled={loading} className="search-btn">
             {loading ? <span className="spinner" /> : 'Chercher'}

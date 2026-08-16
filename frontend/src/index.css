@@ -139,6 +139,40 @@ h1 {
   box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.18);
 }
 
+.suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 0.4rem;
+  list-style: none;
+  border-radius: 14px;
+  background: rgba(20, 21, 28, 0.95);
+  border: 1px solid var(--panel-border);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  max-height: 280px;
+  overflow-y: auto;
+  animation: fadeUp 0.15s ease both;
+}
+
+.suggestions li {
+  padding: 0.65rem 0.8rem;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text);
+  transition: background 0.12s;
+}
+
+.suggestions li.active,
+.suggestions li:hover {
+  background: rgba(108, 92, 231, 0.2);
+  color: white;
+}
+
 .search-btn {
   padding: 0 1.4rem;
   border-radius: 14px;

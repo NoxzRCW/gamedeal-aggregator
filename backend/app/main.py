@@ -23,6 +23,18 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/suggest")
+async def suggest(q: str = Query(min_length=1)):
+    cache_key = f"suggest:{q.lower()}"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    titles = await itad.suggest(q)
+    await cache_set(cache_key, titles, ttl=3600)
+    return titles
+
+
 @app.get("/api/search", response_model=SearchResponse)
 async def search(q: str = Query(min_length=2)):
     cache_key = f"search:{q.lower()}"

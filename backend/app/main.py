@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,19 @@ app.add_middleware(
 
 HUMBLE_INDEX_CACHE_KEY = "humble:index"
 HUMBLE_INDEX_TTL = 1800
+
+
+def _is_relevant(name: str, query: str) -> bool:
+    """Vérifie que chaque mot de la requête apparaît comme mot entier dans le
+    nom de l'offre. ITAD/Algolia font du matching flou (tolérant aux fautes de
+    frappe) qui remonte du bruit sans rapport (ex: "Mario" -> "Marion",
+    "Aliens: Colonial Marines") ; ce filtre élimine ces faux positifs avant tri.
+    """
+    words = [w for w in re.split(r"\s+", query.strip()) if w]
+    if not words:
+        return True
+    name_low = name.lower()
+    return all(re.search(rf"\b{re.escape(w.lower())}\b", name_low) for w in words)
 
 
 async def get_humble_index() -> dict:
@@ -217,8 +231,13 @@ async def search(
         else:
             offers.extend(result)
 
+    # ITAD/Algolia tolèrent les fautes de frappe et renvoient parfois du bruit
+    # sans rapport (ex: "Mario" -> "Marion", "Aliens: Colonial Marines") ; on
+    # ne garde que les offres dont le nom contient réellement les mots tapés
+    offers = [o for o in offers if _is_relevant(o.name, q)]
+
     offers.sort(key=lambda o: (o.price is None, o.price))
-    total = len(offers) + max(ig_total - sum(1 for o in offers if o.source == "Instant Gaming"), 0)
+    total = len(offers)
 
     bundle_deals: list[BundleDeal] = []
     if isinstance(humble_index, dict) and humble_index:
